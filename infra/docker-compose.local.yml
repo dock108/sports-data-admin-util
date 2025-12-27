@@ -1,0 +1,79 @@
+# docker-compose.local.yml
+# Connects to your EXISTING postgres on localhost, runs redis in Docker.
+#
+# Usage:
+#   cd infra
+#   docker-compose --env-file ../.env -f docker-compose.local.yml up --build
+
+version: "3.9"
+
+services:
+  # Redis runs in Docker (no need to have it on host)
+  redis:
+    image: redis:7-alpine
+    container_name: sports-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    container_name: sports-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Connects to postgres on HOST machine (where your data is)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB}
+      # Connects to redis in THIS docker network (no password needed - internal only)
+      REDIS_URL: redis://redis:6379/2
+      CELERY_BROKER_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  scraper:
+    build:
+      context: ..
+      dockerfile: infra/scraper.Dockerfile
+    container_name: sports-scraper
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Connects to postgres on HOST machine
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB}
+      # Connects to redis in THIS docker network
+      REDIS_URL: redis://redis:6379/2
+      REDIS_HOST: redis
+      REDIS_DB: "2"
+      ODDS_API_KEY: ${ODDS_API_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - scraper-cache:/app/scraper/game_data
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    container_name: sports-web
+    environment:
+      NEXT_PUBLIC_SPORTS_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  scraper-cache:

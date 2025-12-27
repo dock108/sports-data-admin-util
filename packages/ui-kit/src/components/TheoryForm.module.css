@@ -1,0 +1,113 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--dock-text);
+}
+
+.textarea {
+  padding: 1rem;
+  border: 1px solid var(--dock-border);
+  border-radius: 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--dock-bg);
+  color: var(--dock-text);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--dock-accent);
+  box-shadow: 0 0 0 3px rgba(138, 124, 255, 0.25);
+}
+
+.textarea:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  cursor: not-allowed;
+}
+
+.examples {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 1rem;
+  padding: 1rem;
+  border: 1px dashed var(--dock-border);
+}
+
+.examplesLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dock-text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.examplesList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exampleItem {
+  font-size: 0.95rem;
+  color: var(--dock-text-muted);
+  padding-left: 1.25rem;
+  position: relative;
+}
+
+.exampleItem::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--dock-accent);
+}
+
+.extraFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.error {
+  background: rgba(255, 99, 99, 0.12);
+  border: 1px solid rgba(255, 99, 99, 0.4);
+  border-radius: 0.85rem;
+  padding: 1rem;
+  color: #ffb3b3;
+  font-weight: 500;
+}
+
+.submitButton {
+  padding: 0.85rem 2rem;
+  background: var(--dock-accent);
+  color: var(--dock-bg);
+  border: none;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 30px rgba(138, 124, 255, 0.35);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

@@ -1,0 +1,108 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: #0f172a;
+}
+
+.backLink {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card h1 {
+  color: #0f172a;
+  margin-top: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.card h2 {
+  color: #0f172a;
+  margin-top: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.card p {
+  color: #0f172a;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #475569;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+}
+
+.metaGrid p {
+  color: #0f172a;
+  font-weight: 600;
+  margin: 0.25rem 0 0;
+}
+
+.status {
+  text-transform: capitalize;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.configBlock {
+  margin-top: 2rem;
+}
+
+.configBlock h2 {
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.configBlock pre {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow: auto;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.summary {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.summary h2 {
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.summary p {
+  color: #0f172a;
+}

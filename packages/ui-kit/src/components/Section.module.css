@@ -1,0 +1,18 @@
+.section {
+  margin-bottom: 2rem;
+  padding: 1.75rem;
+  background-color: var(--dock-surface);
+  border-radius: var(--dock-radius);
+  border: 1px solid var(--dock-border);
+  box-shadow: 0 25px 55px rgba(5, 6, 11, 0.45);
+}
+
+.title {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--dock-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+

@@ -1,0 +1,151 @@
+.container {
+  color: #0f172a;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  transition: color 0.15s ease;
+}
+
+.backLink:hover {
+  color: #4f46e5;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.teamBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.abbr {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.gamesTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gamesTable th,
+.gamesTable td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.gamesTable th {
+  background: #f8fafc;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gamesTable tbody tr:hover {
+  background: #f8fafc;
+}
+
+.gamesTable a {
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+.gamesTable a:hover {
+  text-decoration: underline;
+}
+
+.resultWin {
+  color: #059669;
+  font-weight: 600;
+}
+
+.resultLoss {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.resultDraw {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.homeIndicator {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-left: 0.375rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  color: #dc2626;
+}
+
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 8px;
+}

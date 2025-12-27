@@ -1,0 +1,35 @@
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.chip {
+  padding: 0.5rem 1rem;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #2d3748;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  background-color: #edf2f7;
+  border-color: #cbd5e0;
+}
+
+.chip.selected {
+  background-color: #3182ce;
+  border-color: #3182ce;
+  color: white;
+}
+
+.chip.selected:hover {
+  background-color: #2c5aa0;
+  border-color: #2c5aa0;
+}
+

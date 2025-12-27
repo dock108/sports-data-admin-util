@@ -1,0 +1,36 @@
+[project]
+name = "theory-bets-scraper"
+version = "0.1.0"
+description = "Configurable boxscore + odds ingestion service for dock108 sports theory engine."
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.8.0,<3.0.0",
+  "pydantic-settings>=2.5.0,<3.0.0",
+  "sqlalchemy>=2.0.0,<3.0.0",
+  "psycopg[binary]>=3.2.0,<4.0.0",
+  "alembic>=1.13.0,<2.0.0",
+  "httpx>=0.27.0,<0.28.0",
+  "beautifulsoup4>=4.12.0,<5.0.0",
+  "lxml>=5.3.0,<6.0.0",
+  "structlog>=24.1.0,<25.0.0",
+  "celery>=5.4.0,<6.0.0",
+  "redis>=5.0.0,<6.0.0",
+  "tenacity>=9.0.0,<10.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+  "black>=24.8.0,<25.0.0",
+  "ruff>=0.7.0,<0.8.0",
+  "pytest>=8.3.2,<9.0.0",
+  "mypy>=1.11.0,<2.0.0",
+  "types-beautifulsoup4>=4.12.0,<5.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bets_scraper"]
+

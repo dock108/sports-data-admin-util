@@ -1,0 +1,26 @@
+/* App shell layout - provides consistent structure across all dock108 apps */
+.app-shell {
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Global body styles using dock108 theme variables */
+body {
+  margin: 0;
+  font-family: var(--dock-font);
+  background: var(--dock-bg);
+  color: var(--dock-text);
+}
+
+/* Let components control their own colors - don't force inheritance */

@@ -1,0 +1,56 @@
+/* Admin-specific light theme - overrides default dark theme variables */
+.layout {
+  /* Override dock108 theme variables for light mode in admin */
+  --dock-bg: #f1f5f9;
+  --dock-surface: #ffffff;
+  --dock-elevated: #f8fafc;
+  --dock-border: #cbd5e1;
+  --dock-text: #0f172a;
+  --dock-text-muted: #475569;
+  --dock-accent: #2563eb;
+  --dock-accent-secondary: #059669;
+  
+  display: flex;
+  min-height: calc(100vh - 60px);
+  margin-top: 60px;
+  background: var(--dock-bg);
+  color: var(--dock-text);
+}
+
+.main {
+  flex: 1;
+  margin-left: 240px;
+  padding: 2rem;
+  min-height: calc(100vh - 60px);
+}
+
+.content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Ensure all admin text uses the light theme colors */
+.layout h1,
+.layout h2,
+.layout h3,
+.layout h4,
+.layout h5,
+.layout h6 {
+  color: var(--dock-text);
+}
+
+.layout p,
+.layout span,
+.layout td,
+.layout th,
+.layout li {
+  color: inherit;
+}
+
+.layout a {
+  color: var(--dock-accent);
+}
+
+.layout strong {
+  color: var(--dock-text);
+}
