@@ -108,6 +108,7 @@ class SportsGame(Base):
     player_boxscores: Mapped[list["SportsPlayerBoxscore"]] = relationship("SportsPlayerBoxscore", back_populates="game", cascade="all, delete-orphan")
     odds: Mapped[list["SportsGameOdds"]] = relationship("SportsGameOdds", back_populates="game", cascade="all, delete-orphan")
     social_posts: Mapped[list["GameSocialPost"]] = relationship("GameSocialPost", back_populates="game", cascade="all, delete-orphan")
+    plays: Mapped[list["SportsGamePlay"]] = relationship("SportsGamePlay", back_populates="game", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("league_id", "season", "game_date", "home_team_id", "away_team_id", name="uq_game_identity"),
@@ -192,6 +193,36 @@ class SportsGameOdds(Base):
             "is_closing_line",
             unique=True,
         ),
+    )
+
+
+class SportsGamePlay(Base):
+    """Play-by-play events captured per game."""
+
+    __tablename__ = "sports_game_plays"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    game_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_games.id", ondelete="CASCADE"), nullable=False, index=True)
+    quarter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    game_clock: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    play_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    play_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    team_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("sports_teams.id"), nullable=True)
+    player_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    player_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_data: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    game: Mapped[SportsGame] = relationship("SportsGame", back_populates="plays")
+    team: Mapped[SportsTeam | None] = relationship("SportsTeam")
+
+    __table_args__ = (
+        UniqueConstraint("game_id", "play_index", name="uq_game_play_index"),
+        Index("idx_game_plays_player", "player_id"),
+        Index("idx_game_plays_type", "play_type"),
     )
 
 

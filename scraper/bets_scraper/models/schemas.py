@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SportCode = Literal["NBA", "NFL", "NCAAF", "NCAAB", "MLB", "NHL"]
 MarketType = Literal["spread", "total", "moneyline"]
-ScraperType = Literal["boxscore", "odds", "boxscore_and_odds", "social", "all"]
+ScraperType = Literal["boxscore", "odds", "boxscore_and_odds", "social", "pbp", "all"]
 
 
 class TeamIdentity(BaseModel):
@@ -98,6 +98,29 @@ class NormalizedOddsSnapshot(BaseModel):
     raw_payload: dict = Field(default_factory=dict)
 
 
+class NormalizedPlay(BaseModel):
+    """Single play-by-play event."""
+
+    play_index: int
+    quarter: int | None = None
+    game_clock: str | None = None
+    play_type: str | None = None
+    team_abbreviation: str | None = None
+    player_id: str | None = None
+    player_name: str | None = None
+    description: str | None = None
+    home_score: int | None = None
+    away_score: int | None = None
+    raw_data: dict = Field(default_factory=dict)
+
+
+class NormalizedPlayByPlay(BaseModel):
+    """Play-by-play payload for a single game."""
+
+    source_game_key: str
+    plays: list[NormalizedPlay] = Field(default_factory=list)
+
+
 class IngestionConfig(BaseModel):
     scraper_type: ScraperType = "boxscore_and_odds"
     league_code: SportCode
@@ -108,11 +131,13 @@ class IngestionConfig(BaseModel):
     include_boxscores: bool = True
     include_odds: bool = True
     include_social: bool = False  # Scrape X posts for games
+    include_pbp: bool = False  # Scrape play-by-play for games
     rescrape_existing: bool = False
     only_missing: bool = False
     include_books: list[str] | None = None
     backfill_player_stats: bool = False  # Re-scrape games missing player boxscores
     backfill_odds: bool = False  # Fetch odds for games missing odds data
     backfill_social: bool = False  # Fetch social posts for games missing them
+    backfill_pbp: bool = False  # Fetch play-by-play for games missing it
 
 

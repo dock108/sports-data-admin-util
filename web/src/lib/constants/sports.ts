@@ -31,9 +31,11 @@ export type ScrapeRunForm = {
   includeBoxscores: boolean;
   includeOdds: boolean;
   includeSocial: boolean;
+  includePbp: boolean;
   backfillPlayerStats: boolean;
   backfillOdds: boolean;
   backfillSocial: boolean;
+  backfillPbp: boolean;
   requestedBy: string;
 };
 
@@ -48,9 +50,11 @@ export const DEFAULT_SCRAPE_RUN_FORM: ScrapeRunForm = {
   includeBoxscores: true,
   includeOdds: true,
   includeSocial: false,
+  includePbp: false,
   backfillPlayerStats: false,
   backfillOdds: false,
   backfillSocial: false,
+  backfillPbp: false,
   requestedBy: "admin@dock108.ai",
 };
 

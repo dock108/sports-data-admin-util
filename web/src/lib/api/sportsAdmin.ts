@@ -45,6 +45,8 @@ export type GameSummary = {
   has_player_stats: boolean;
   has_odds: boolean;
   has_social: boolean;
+   has_pbp: boolean;
+   play_count: number;
   social_post_count: number;
   has_required_data: boolean;
   scrape_version: number | null;
@@ -59,6 +61,7 @@ export type GameListResponse = {
   with_player_stats_count?: number;
   with_odds_count?: number;
   with_social_count?: number;
+  with_pbp_count?: number;
 };
 
 export type TeamStat = {
@@ -99,6 +102,18 @@ export type SocialPost = {
   team_abbreviation: string;
 };
 
+export type PlayEntry = {
+  play_index: number;
+  quarter: number | null;
+  game_clock: string | null;
+  play_type: string | null;
+  team_abbreviation: string | null;
+  player_name: string | null;
+  description: string | null;
+  home_score: number | null;
+  away_score: number | null;
+};
+
 export type AdminGameDetail = {
   game: {
     id: number;
@@ -117,12 +132,15 @@ export type AdminGameDetail = {
     has_player_stats: boolean;
     has_odds: boolean;
     has_social: boolean;
+    has_pbp: boolean;
+    play_count: number;
     social_post_count: number;
   };
   team_stats: TeamStat[];
   player_stats: PlayerStat[];
   odds: OddsEntry[];
   social_posts: SocialPost[];
+  plays: PlayEntry[];
   derived_metrics: Record<string, any>;
   raw_payloads: Record<string, any>;
 };

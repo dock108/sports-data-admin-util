@@ -13,7 +13,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import settings
 from ..logging import logger
-from ..models import NormalizedGame, TeamIdentity
+from ..models import NormalizedGame, NormalizedPlayByPlay, TeamIdentity
 from ..normalization import normalize_team_name
 from ..utils.cache import HTMLCache
 from ..utils.date_utils import season_from_date
@@ -77,6 +77,10 @@ class BaseSportsReferenceScraper:
     def scoreboard_url(self, day: date) -> str:
         return f"{self.base_url}?month={day.month}&day={day.day}&year={day.year}"
 
+    def pbp_url(self, source_game_key: str) -> str:
+        """Build the play-by-play URL for a game key."""
+        raise NotImplementedError
+
     def _polite_delay(self) -> None:
         """Wait a random 5-9 seconds since last request to be a good citizen."""
         elapsed = time.time() - self._last_request_time
@@ -126,6 +130,10 @@ class BaseSportsReferenceScraper:
         return BeautifulSoup(html, "lxml")
 
     def fetch_games_for_date(self, day: date) -> Sequence[NormalizedGame]:
+        raise NotImplementedError
+
+    def fetch_play_by_play(self, source_game_key: str, game_date: date) -> NormalizedPlayByPlay:
+        """Fetch and parse play-by-play for a single game."""
         raise NotImplementedError
 
     def fetch_single_boxscore(self, source_game_key: str, game_date: date) -> NormalizedGame | None:

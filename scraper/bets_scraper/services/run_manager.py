@@ -13,7 +13,7 @@ from ..db import db_models, get_session
 from ..logging import logger
 from ..models import IngestionConfig
 from ..odds.synchronizer import OddsSynchronizer
-from ..persistence import persist_game_payload, upsert_player_boxscores
+from ..persistence import persist_game_payload, upsert_player_boxscores, upsert_plays
 from ..scrapers import get_all_scrapers
 from ..social import XPostCollector
 from ..utils.datetime_utils import utcnow
@@ -139,6 +139,41 @@ class ScrapeRunManager:
 
         return [r[0] for r in query.all()]
 
+    def _get_games_for_pbp(
+        self,
+        session: Session,
+        league_code: str,
+        start_date: date,
+        end_date: date,
+        only_missing: bool = True,
+    ) -> List[Tuple[int, str, date]]:
+        """Get games for play-by-play scraping."""
+        league = session.query(db_models.SportsLeague).filter(
+            db_models.SportsLeague.code == league_code
+        ).first()
+        if not league:
+            return []
+
+        query = session.query(
+            db_models.SportsGame.id,
+            db_models.SportsGame.source_game_key,
+            db_models.SportsGame.game_date,
+        ).filter(
+            db_models.SportsGame.league_id == league.id,
+            db_models.SportsGame.game_date >= datetime.combine(start_date, datetime.min.time()),
+            db_models.SportsGame.game_date <= datetime.combine(end_date, datetime.max.time()),
+            db_models.SportsGame.source_game_key.isnot(None),
+        )
+
+        if only_missing:
+            has_pbp = exists().where(
+                db_models.SportsGamePlay.game_id == db_models.SportsGame.id
+            )
+            query = query.filter(not_(has_pbp))
+
+        results = query.all()
+        return [(r.id, r.source_game_key, r.game_date.date() if r.game_date else None) for r in results]
+
     def run(self, run_id: int, config: IngestionConfig) -> dict:
         summary: Dict[str, int | str] = {
             "games": 0,
@@ -146,6 +181,7 @@ class ScrapeRunManager:
             "backfilled_players": 0,
             "backfilled_odds": 0,
             "social_posts": 0,
+            "pbp_games": 0,
         }
         start = config.start_date or date.today()
         end = config.end_date or start
@@ -251,6 +287,47 @@ class ScrapeRunManager:
                     except Exception as e:
                         logger.warning("odds_backfill_date_failed", date=str(fetch_date), error=str(e))
 
+            # Play-by-play scraping
+            if config.include_pbp or config.backfill_pbp:
+                logger.info(
+                    "starting_pbp_scraping",
+                    run_id=run_id,
+                    league=config.league_code,
+                    start=str(start),
+                    end=str(end),
+                    only_missing=config.backfill_pbp,
+                )
+                with get_session() as session:
+                    games_for_pbp = self._get_games_for_pbp(
+                        session,
+                        config.league_code,
+                        start,
+                        end,
+                        only_missing=config.backfill_pbp,
+                    )
+                logger.info("found_games_for_pbp", count=len(games_for_pbp), run_id=run_id)
+
+                for game_id, source_key, game_date in games_for_pbp:
+                    if not source_key or not game_date:
+                        logger.debug("pbp_skip_no_key", game_id=game_id)
+                        continue
+                    try:
+                        pbp_payload = scraper.fetch_play_by_play(source_key, game_date)
+                        if pbp_payload and pbp_payload.plays:
+                            with get_session() as session:
+                                upsert_plays(session, game_id, pbp_payload.plays)
+                                session.commit()
+                                summary["pbp_games"] += 1
+                        else:
+                            logger.debug("pbp_no_data", game_id=game_id, source_key=source_key)
+                    except Exception as e:
+                        logger.warning(
+                            "pbp_scrape_failed",
+                            game_id=game_id,
+                            source_key=source_key,
+                            error=str(e),
+                        )
+
             # Social post scraping
             if config.include_social or config.backfill_social:
                 logger.info(
@@ -299,6 +376,8 @@ class ScrapeRunManager:
                 summary_parts.append(f'Backfilled odds: {summary["backfilled_odds"]}')
             if summary["social_posts"]:
                 summary_parts.append(f'Social posts: {summary["social_posts"]}')
+            if summary["pbp_games"]:
+                summary_parts.append(f'PBP games: {summary["pbp_games"]}')
 
             self._update_run(
                 run_id,

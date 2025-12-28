@@ -33,12 +33,14 @@ class ScrapeRunConfig(BaseModel):
     include_boxscores: bool = Field(True, alias="includeBoxscores")
     include_odds: bool = Field(True, alias="includeOdds")
     include_social: bool = Field(False, alias="includeSocial")
+    include_pbp: bool = Field(False, alias="includePbp")
     include_books: list[str] | None = Field(None, alias="books")
     rescrape_existing: bool = Field(False, alias="rescrapeExisting")
     only_missing: bool = Field(False, alias="onlyMissing")
     backfill_player_stats: bool = Field(False, alias="backfillPlayerStats")
     backfill_odds: bool = Field(False, alias="backfillOdds")
     backfill_social: bool = Field(False, alias="backfillSocial")
+    backfill_pbp: bool = Field(False, alias="backfillPbp")
 
     def to_worker_payload(self) -> dict[str, Any]:
         return {
@@ -51,12 +53,14 @@ class ScrapeRunConfig(BaseModel):
             "include_boxscores": self.include_boxscores,
             "include_odds": self.include_odds,
             "include_social": self.include_social,
+            "include_pbp": self.include_pbp,
             "include_books": self.include_books,
             "rescrape_existing": self.rescrape_existing,
             "only_missing": self.only_missing,
             "backfill_player_stats": self.backfill_player_stats,
             "backfill_odds": self.backfill_odds,
             "backfill_social": self.backfill_social,
+            "backfill_pbp": self.backfill_pbp,
         }
 
 
@@ -93,6 +97,8 @@ class GameSummary(BaseModel):
     has_player_stats: bool
     has_odds: bool
     has_social: bool
+    has_pbp: bool
+    play_count: int
     social_post_count: int
     has_required_data: bool
     scrape_version: int | None
@@ -107,6 +113,7 @@ class GameListResponse(BaseModel):
     with_player_stats_count: int | None = 0
     with_odds_count: int | None = 0
     with_social_count: int | None = 0
+    with_pbp_count: int | None = 0
 
 
 class TeamStat(BaseModel):
@@ -160,6 +167,8 @@ class GameMeta(BaseModel):
     has_player_stats: bool
     has_odds: bool
     has_social: bool
+    has_pbp: bool
+    play_count: int
     social_post_count: int
     home_team_x_handle: str | None = None
     away_team_x_handle: str | None = None
@@ -173,12 +182,25 @@ class SocialPostEntry(BaseModel):
     team_abbreviation: str
 
 
+class PlayEntry(BaseModel):
+    play_index: int
+    quarter: int | None = None
+    game_clock: str | None = None
+    play_type: str | None = None
+    team_abbreviation: str | None = None
+    player_name: str | None = None
+    description: str | None = None
+    home_score: int | None = None
+    away_score: int | None = None
+
+
 class GameDetailResponse(BaseModel):
     game: GameMeta
     team_stats: list[TeamStat]
     player_stats: list[PlayerStat]
     odds: list[OddsEntry]
     social_posts: list[SocialPostEntry]
+    plays: list["PlayEntry"]
     derived_metrics: dict[str, Any]
     raw_payloads: dict[str, Any]
 
@@ -417,6 +439,9 @@ def _summarize_game(game: db_models.SportsGame) -> GameSummary:
     social_posts = getattr(game, "social_posts", []) or []
     has_social = bool(social_posts)
     social_post_count = len(social_posts)
+    plays = getattr(game, "plays", []) or []
+    has_pbp = bool(plays)
+    play_count = len(plays)
     season_type = getattr(game, "season_type", None)
     return GameSummary(
         id=game.id,
@@ -430,6 +455,8 @@ def _summarize_game(game: db_models.SportsGame) -> GameSummary:
         has_player_stats=has_player_stats,
         has_odds=has_odds,
         has_social=has_social,
+        has_pbp=has_pbp,
+        play_count=play_count,
         social_post_count=social_post_count,
         has_required_data=has_boxscore and has_odds,
         scrape_version=getattr(game, "scrape_version", None),
@@ -461,6 +488,7 @@ async def list_games(
         selectinload(db_models.SportsGame.player_boxscores),
         selectinload(db_models.SportsGame.odds),
         selectinload(db_models.SportsGame.social_posts),
+        selectinload(db_models.SportsGame.plays),
     )
 
     base_stmt = _apply_game_filters(
@@ -509,11 +537,15 @@ async def list_games(
     with_social_count_stmt = count_stmt.where(
         exists(select(1).where(db_models.GameSocialPost.game_id == db_models.SportsGame.id))
     )
+    with_pbp_count_stmt = count_stmt.where(
+        exists(select(1).where(db_models.SportsGamePlay.game_id == db_models.SportsGame.id))
+    )
 
     with_boxscore_count = (await session.execute(with_boxscore_count_stmt)).scalar_one()
     with_player_stats_count = (await session.execute(with_player_stats_count_stmt)).scalar_one()
     with_odds_count = (await session.execute(with_odds_count_stmt)).scalar_one()
     with_social_count = (await session.execute(with_social_count_stmt)).scalar_one()
+    with_pbp_count = (await session.execute(with_pbp_count_stmt)).scalar_one()
 
     next_offset = offset + limit if offset + limit < total else None
     summaries = [_summarize_game(game) for game in games]
@@ -526,6 +558,7 @@ async def list_games(
         with_player_stats_count=with_player_stats_count,
         with_odds_count=with_odds_count,
         with_social_count=with_social_count,
+        with_pbp_count=with_pbp_count,
     )
 
 
@@ -595,6 +628,7 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
             selectinload(db_models.SportsGame.player_boxscores).selectinload(db_models.SportsPlayerBoxscore.team),
             selectinload(db_models.SportsGame.odds),
             selectinload(db_models.SportsGame.social_posts),
+            selectinload(db_models.SportsGame.plays),
         )
         .where(db_models.SportsGame.id == game_id)
     )
@@ -617,6 +651,22 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
         for odd in game.odds
     ]
 
+    plays_entries: list[PlayEntry] = []
+    for play in sorted(game.plays, key=lambda p: p.play_index):
+        plays_entries.append(
+            PlayEntry(
+                play_index=play.play_index,
+                quarter=play.quarter,
+                game_clock=play.game_clock,
+                play_type=play.play_type,
+                team_abbreviation=play.raw_data.get("team_abbreviation") if isinstance(play.raw_data, dict) else None,
+                player_name=play.player_name,
+                description=play.description,
+                home_score=play.home_score,
+                away_score=play.away_score,
+            )
+        )
+
     meta = GameMeta(
         id=game.id,
         league_code=game.league.code if game.league else "UNKNOWN",
@@ -634,6 +684,8 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
         has_player_stats=bool(game.player_boxscores),
         has_odds=bool(game.odds),
         has_social=bool(game.social_posts),
+        has_pbp=bool(game.plays),
+        play_count=len(game.plays) if game.plays else 0,
         social_post_count=len(game.social_posts) if game.social_posts else 0,
         home_team_x_handle=game.home_team.x_handle if game.home_team else None,
         away_team_x_handle=game.away_team.x_handle if game.away_team else None,
@@ -698,6 +750,7 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
         player_stats=player_stats,
         odds=odds_entries,
         social_posts=social_posts_entries,
+        plays=plays_entries,
         derived_metrics=derived,
         raw_payloads=raw_payloads,
     )

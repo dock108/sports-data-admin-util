@@ -21,8 +21,9 @@ export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games
     const withPlayerStats = games.filter((g) => g.has_player_stats).length;
     const withOdds = games.filter((g) => g.has_odds).length;
     const withSocial = games.filter((g) => g.has_social).length;
+    const withPbp = games.filter((g) => g.has_pbp).length;
     const ready = games.filter((g) => g.has_required_data).length;
-    return { withBoxscore, withPlayerStats, withOdds, withSocial, ready, total: games.length };
+    return { withBoxscore, withPlayerStats, withOdds, withSocial, withPbp, ready, total: games.length };
   }, [games]);
 
   return (
@@ -33,6 +34,7 @@ export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games
           <span>Player Stats: {stats.withPlayerStats}/{stats.total}</span>
           <span>Odds: {stats.withOdds}/{stats.total}</span>
           <span>Social: {stats.withSocial}/{stats.total}</span>
+          <span>PBP: {stats.withPbp}/{stats.total}</span>
           <span>Ready: {stats.ready}/{stats.total}</span>
         </div>
       )}
@@ -51,6 +53,7 @@ export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games
                 <th>Players</th>
                 <th>Odds</th>
                 <th>Social</th>
+                  <th>PBP</th>
               </>
             )}
           </tr>
@@ -58,7 +61,7 @@ export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games
         <tbody>
           {games.length === 0 ? (
             <tr>
-              <td colSpan={showCompleteness ? 9 : 5} className={styles.emptyCell}>
+                <td colSpan={showCompleteness ? 10 : 5} className={styles.emptyCell}>
                 No games found
               </td>
             </tr>
@@ -106,6 +109,12 @@ export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games
                       <span className={`${styles.statusDot} ${game.has_social ? styles.dotOk : styles.dotMissing}`} />
                       <span className={styles.statusLabel}>
                         {game.social_post_count > 0 ? `${game.social_post_count}` : "—"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`${styles.statusDot} ${game.has_pbp ? styles.dotOk : styles.dotMissing}`} />
+                      <span className={styles.statusLabel}>
+                        {game.play_count > 0 ? `${game.play_count}` : "—"}
                       </span>
                     </td>
                   </>

@@ -35,7 +35,10 @@ class HTMLCache:
         path_parts = parsed.path.strip("/").split("/")
         
         # Build filename from URL (season is no longer part of path to avoid stale year segments)
-        if "boxscores" in parsed.path and path_parts[-1].endswith(".html"):
+        if "/pbp/" in parsed.path and path_parts[-1].endswith(".html"):
+            # Play-by-play URL: .../boxscores/pbp/202410220BOS.html
+            filename = f"pbp_{path_parts[-1]}"
+        elif "boxscores" in parsed.path and path_parts[-1].endswith(".html"):
             # Boxscore URL: .../boxscores/202410220BOS.html
             filename = path_parts[-1]
         elif "boxscores" in parsed.path and parsed.query:

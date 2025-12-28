@@ -123,6 +123,31 @@ export function ScrapeRunForm({ onSubmit, loading = false, error, success }: Scr
           </label>
         </div>
 
+        <h3 className={styles.sectionTitle}>Play-by-Play</h3>
+        <div className={styles.toggles}>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.includePbp}
+              onChange={(e) => setForm((prev) => ({ ...prev, includePbp: e.target.checked }))}
+            />
+            Include play-by-play
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.backfillPbp}
+              onChange={(e) => setForm((prev) => ({ ...prev, backfillPbp: e.target.checked }))}
+            />
+            Backfill missing PBP
+          </label>
+        </div>
+        {(form.includePbp || form.backfillPbp) && (
+          <p className={styles.hint}>
+            Scrapes play-by-play from Sports Reference (one request per game; cached after first fetch)
+          </p>
+        )}
+
         <div className={styles.toggles}>
           <label>
             <input
