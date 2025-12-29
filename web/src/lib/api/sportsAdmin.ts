@@ -679,9 +679,11 @@ export async function createScrapeRun(payload: {
     includeBoxscores?: boolean;
     includeOdds?: boolean;
     includeSocial?: boolean;
+    includePbp?: boolean;
     backfillPlayerStats?: boolean;
     backfillOdds?: boolean;
     backfillSocial?: boolean;
+    backfillPbp?: boolean;
     books?: string[];
   };
 }): Promise<ScrapeRunResponse> {

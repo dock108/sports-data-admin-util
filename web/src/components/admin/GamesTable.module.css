@@ -1,14 +1,59 @@
 .statsBar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.statCard {
   display: flex;
-  gap: 1.5rem;
-  padding: 1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  color: #475569;
-  font-weight: 500;
+  text-align: center;
+}
+
+.statCard.ready {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
+}
+
+.statValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.statLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.statPct {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 0.125rem;
+}
+
+@media (max-width: 900px) {
+  .statsBar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .statsBar {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .table {

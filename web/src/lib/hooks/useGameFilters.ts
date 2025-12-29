@@ -33,6 +33,7 @@ interface UseGameFiltersReturn {
     withPlayerStats: number;
     withOdds: number;
     withSocial: number;
+    withPbp: number;
   } | null;
   loading: boolean;
   error: string | null;
@@ -64,6 +65,7 @@ export function useGameFilters(options: UseGameFiltersOptions = {}): UseGameFilt
     withPlayerStats: number;
     withOdds: number;
     withSocial: number;
+    withPbp: number;
   } | null>(null);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,6 +92,7 @@ export function useGameFilters(options: UseGameFiltersOptions = {}): UseGameFilt
           withPlayerStats: response.with_player_stats_count ?? 0,
           withOdds: response.with_odds_count ?? 0,
           withSocial: response.with_social_count ?? 0,
+          withPbp: response.with_pbp_count ?? 0,
         });
         setNextOffset(response.next_offset);
       } catch (err) {

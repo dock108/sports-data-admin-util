@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { type GameSummary } from "@/lib/api/sportsAdmin";
 import styles from "./GamesTable.module.css";
 
@@ -16,29 +15,8 @@ interface GamesTableProps {
  * Shows game metadata, scores, and data completeness indicators.
  */
 export function GamesTable({ games, detailLinkPrefix = "/admin/theory-bets/games", showCompleteness = true }: GamesTableProps) {
-  const stats = useMemo(() => {
-    const withBoxscore = games.filter((g) => g.has_boxscore).length;
-    const withPlayerStats = games.filter((g) => g.has_player_stats).length;
-    const withOdds = games.filter((g) => g.has_odds).length;
-    const withSocial = games.filter((g) => g.has_social).length;
-    const withPbp = games.filter((g) => g.has_pbp).length;
-    const ready = games.filter((g) => g.has_required_data).length;
-    return { withBoxscore, withPlayerStats, withOdds, withSocial, withPbp, ready, total: games.length };
-  }, [games]);
-
   return (
     <>
-      {showCompleteness && games.length > 0 && (
-        <div className={styles.statsBar}>
-          <span>Boxscores: {stats.withBoxscore}/{stats.total}</span>
-          <span>Player Stats: {stats.withPlayerStats}/{stats.total}</span>
-          <span>Odds: {stats.withOdds}/{stats.total}</span>
-          <span>Social: {stats.withSocial}/{stats.total}</span>
-          <span>PBP: {stats.withPbp}/{stats.total}</span>
-          <span>Ready: {stats.ready}/{stats.total}</span>
-        </div>
-      )}
-
       <table className={styles.table}>
         <thead>
           <tr>

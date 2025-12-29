@@ -30,6 +30,12 @@ class SocialPostResponse(BaseModel):
     post_url: str
     posted_at: datetime
     has_video: bool
+    # Content fields for custom X embed display
+    video_url: str | None = None
+    image_url: str | None = None
+    tweet_text: str | None = None
+    source_handle: str | None = None
+    media_type: str | None = None
 
 
 class SocialPostListResponse(BaseModel):
@@ -47,6 +53,12 @@ class SocialPostCreateRequest(BaseModel):
     post_url: str = Field(..., alias="postUrl")
     posted_at: datetime = Field(..., alias="postedAt")
     has_video: bool = Field(False, alias="hasVideo")
+    # Content fields for custom X embed display
+    video_url: str | None = Field(None, alias="videoUrl")
+    image_url: str | None = Field(None, alias="imageUrl")
+    tweet_text: str | None = Field(None, alias="tweetText")
+    source_handle: str | None = Field(None, alias="sourceHandle")
+    media_type: str | None = Field(None, alias="mediaType")
 
 
 class SocialPostBulkCreateRequest(BaseModel):
@@ -69,6 +81,11 @@ def _serialize_post(post: db_models.GameSocialPost) -> SocialPostResponse:
         post_url=post.post_url,
         posted_at=post.posted_at,
         has_video=post.has_video,
+        video_url=post.video_url,
+        image_url=post.image_url,
+        tweet_text=post.tweet_text,
+        source_handle=post.source_handle or (post.team.x_handle if post.team else None),
+        media_type=post.media_type,
     )
 
 
@@ -193,6 +210,11 @@ async def create_social_post(
         post_url=payload.post_url,
         posted_at=payload.posted_at,
         has_video=payload.has_video,
+        video_url=payload.video_url,
+        image_url=payload.image_url,
+        tweet_text=payload.tweet_text,
+        source_handle=payload.source_handle,
+        media_type=payload.media_type,
     )
     session.add(post)
     await session.flush()
@@ -238,6 +260,11 @@ async def bulk_create_social_posts(
             post_url=post_data.post_url,
             posted_at=post_data.posted_at,
             has_video=post_data.has_video,
+            video_url=post_data.video_url,
+            image_url=post_data.image_url,
+            tweet_text=post_data.tweet_text,
+            source_handle=post_data.source_handle,
+            media_type=post_data.media_type,
         )
         session.add(post)
         created_posts.append(post)

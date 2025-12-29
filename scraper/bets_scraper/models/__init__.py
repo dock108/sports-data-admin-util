@@ -6,6 +6,8 @@ from .schemas import (
     NormalizedGame,
     NormalizedOddsSnapshot,
     NormalizedPlayerBoxscore,
+    NormalizedPlay,
+    NormalizedPlayByPlay,
     NormalizedTeamBoxscore,
     TeamIdentity,
 )
@@ -17,6 +19,8 @@ __all__ = [
     "NormalizedTeamBoxscore",
     "NormalizedPlayerBoxscore",
     "NormalizedOddsSnapshot",
+    "NormalizedPlay",
+    "NormalizedPlayByPlay",
     "IngestionConfig",
 ]
 

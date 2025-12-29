@@ -58,7 +58,7 @@ def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]
                 raw_data={**play.raw_data, "team_abbreviation": play.team_abbreviation},
             )
             .on_conflict_do_update(
-                constraint="uq_game_play_index",
+                index_elements=["game_id", "play_index"],
                 set_={
                     "play_type": play.play_type,
                     "team_id": team_id,

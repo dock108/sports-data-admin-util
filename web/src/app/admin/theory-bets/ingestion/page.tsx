@@ -45,9 +45,11 @@ export default function IngestionAdminPage() {
           includeBoxscores: formData.includeBoxscores,
           includeOdds: formData.includeOdds,
           includeSocial: formData.includeSocial,
+          includePbp: formData.includePbp,
           backfillPlayerStats: formData.backfillPlayerStats,
           backfillOdds: formData.backfillOdds,
           backfillSocial: formData.backfillSocial,
+          backfillPbp: formData.backfillPbp,
         },
       });
       setSuccess(`Scrape run #${result.id} scheduled successfully!`);

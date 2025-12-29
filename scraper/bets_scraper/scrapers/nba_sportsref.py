@@ -369,18 +369,46 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         home_abbr: str | None,
         play_index: int,
     ) -> NormalizedPlay | None:
-        """Parse a single play-by-play row."""
+        """Parse a single play-by-play row.
+        
+        Basketball Reference PBP table has 6 columns:
+        - Time | Away Action | (empty) | Score | (empty) | Home Action
+        - Some rows (jump balls, timeouts) have colspan spanning multiple cells
+        """
         if "thead" in row.get("class", []):
             return None
 
         cells = row.find_all("td")
-        if len(cells) < 4:
+        if not cells:
             return None
 
         game_clock = cells[0].text.strip() or None
+
+        # Handle colspan rows (neutral plays like jump balls)
+        if len(cells) == 2:
+            # Colspan format: Time | full description
+            description = cells[1].text.strip()
+            return NormalizedPlay(
+                play_index=play_index,
+                quarter=quarter,
+                game_clock=game_clock,
+                play_type=None,
+                team_abbreviation=None,
+                player_id=None,
+                player_name=None,
+                description=description,
+                home_score=None,
+                away_score=None,
+                raw_data={"full_description": description},
+            )
+
+        # Standard format: Time | Away | (empty) | Score | (empty) | Home
+        if len(cells) < 6:
+            return None
+
         away_action = cells[1].text.strip()
-        score_text = cells[2].text.strip()
-        home_action = cells[3].text.strip()
+        score_text = cells[3].text.strip()
+        home_action = cells[5].text.strip()
 
         description_parts = []
         if away_action:
@@ -418,7 +446,11 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         )
 
     def fetch_play_by_play(self, source_game_key: str, game_date: date) -> NormalizedPlayByPlay:
-        """Fetch and parse play-by-play for a single game."""
+        """Fetch and parse play-by-play for a single game.
+        
+        Basketball Reference PBP page has a single table with id="pbp".
+        Quarters are marked by rows with class="thead" and id="q1", "q2", etc.
+        """
         url = self.pbp_url(source_game_key)
         soup = self.fetch_html(url, game_date=game_date)
 
@@ -427,16 +459,38 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         plays: list[NormalizedPlay] = []
         play_index = 0
 
-        tables = soup.select("table.pbp")
-        for quarter_num, table in enumerate(tables, start=1):
-            tbody = table.find("tbody")
-            if not tbody:
+        # Find the single PBP table by id
+        table = soup.find("table", id="pbp")
+        if not table:
+            logger.warning("pbp_table_not_found", game_key=source_game_key)
+            return NormalizedPlayByPlay(source_game_key=source_game_key, plays=plays)
+
+        current_quarter = 0
+        # Rows are directly in table (no tbody)
+        for row in table.find_all("tr"):
+            row_classes = row.get("class", [])
+            row_id = row.get("id", "")
+            
+            # Check for quarter header rows (e.g., id="q1", id="q2", etc.)
+            if row_id and row_id.startswith("q") and len(row_id) == 2:
+                try:
+                    current_quarter = int(row_id[1])
+                except ValueError:
+                    pass
                 continue
-            for row in tbody.find_all("tr"):
-                play = self._parse_pbp_row(row, quarter_num, away_abbr, home_abbr, play_index)
-                if play:
-                    plays.append(play)
-                    play_index += 1
+
+            # Skip other thead rows (column headers)
+            if "thead" in row_classes:
+                continue
+
+            # Skip if we haven't found a quarter yet
+            if current_quarter == 0:
+                continue
+
+            play = self._parse_pbp_row(row, current_quarter, away_abbr, home_abbr, play_index)
+            if play:
+                plays.append(play)
+                play_index += 1
 
         logger.info(
             "pbp_parsed",

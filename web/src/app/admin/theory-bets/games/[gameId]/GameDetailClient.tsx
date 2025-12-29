@@ -1,10 +1,141 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchGame, rescrapeGame, resyncOdds, type AdminGameDetail } from "@/lib/api/sportsAdmin";
 import styles from "./styles.module.css";
+
+/** Collapsible section component */
+function CollapsibleSection({ title, defaultOpen = true, children }: { 
+  title: string; 
+  defaultOpen?: boolean; 
+  children: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className={styles.card}>
+      <button
+        type="button"
+        className={styles.collapsibleHeader}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <h2>{title}</h2>
+        <span className={styles.chevron}>{isOpen ? "▼" : "▶"}</span>
+      </button>
+      {isOpen && <div className={styles.collapsibleContent}>{children}</div>}
+    </div>
+  );
+}
+
+/** Play-by-Play section with quarter tabs */
+type PlayEntry = {
+  id: number;
+  quarter: number | null;
+  game_clock: string | null;
+  play_index: number;
+  play_type: string | null;
+  team_abbreviation: string | null;
+  player_id: string | null;
+  player_name: string | null;
+  description: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  raw_data: Record<string, unknown>;
+};
+
+function PbpSection({ plays }: { plays: PlayEntry[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedQuarter, setSelectedQuarter] = useState<number | null>(null);
+
+  // Get unique quarters
+  const quarters = useMemo(() => {
+    const qs = [...new Set(plays.map((p) => p.quarter).filter((q) => q !== null))] as number[];
+    return qs.sort((a, b) => a - b);
+  }, [plays]);
+
+  // Initialize selected quarter
+  useEffect(() => {
+    if (quarters.length > 0 && selectedQuarter === null) {
+      setSelectedQuarter(quarters[0]);
+    }
+  }, [quarters, selectedQuarter]);
+
+  // Filter plays by selected quarter
+  const filteredPlays = useMemo(() => {
+    if (selectedQuarter === null) return plays;
+    return plays.filter((p) => p.quarter === selectedQuarter);
+  }, [plays, selectedQuarter]);
+
+  const getQuarterLabel = (q: number) => {
+    if (q <= 4) return `Q${q}`;
+    return `OT${q - 4}`;
+  };
+
+  return (
+    <div className={styles.card}>
+      <button
+        type="button"
+        className={styles.collapsibleHeader}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <h2>Play-by-Play</h2>
+        <span className={styles.chevron}>{isOpen ? "▼" : "▶"}</span>
+      </button>
+      {isOpen && (
+        <div className={styles.collapsibleContent}>
+          {plays.length === 0 ? (
+            <div style={{ color: "#475569" }}>No play-by-play data found for this game.</div>
+          ) : (
+            <>
+              <div className={styles.quarterTabs}>
+                {quarters.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    className={`${styles.quarterTab} ${selectedQuarter === q ? styles.quarterTabActive : ""}`}
+                    onClick={() => setSelectedQuarter(q)}
+                  >
+                    {getQuarterLabel(q)}
+                    <span className={styles.quarterCount}>
+                      {plays.filter((p) => p.quarter === q).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className={styles.pbpContainer}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Team</th>
+                      <th>Description</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlays.map((play) => (
+                      <tr key={play.id}>
+                        <td>{play.game_clock ?? "—"}</td>
+                        <td>{play.team_abbreviation ?? "—"}</td>
+                        <td className={styles.pbpDescription}>{play.description ?? "—"}</td>
+                        <td>
+                          {play.away_score !== null && play.home_score !== null
+                            ? `${play.away_score}-${play.home_score}`
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function GameDetailClient() {
   const params = useParams<{ gameId?: string }>();
@@ -44,6 +175,7 @@ export default function GameDetailClient() {
       { label: "Player stats", ok: game.game.has_player_stats },
       { label: "Odds", ok: game.game.has_odds },
       { label: `Social (${game.game.social_post_count || 0})`, ok: game.game.has_social },
+      { label: `PBP (${game.game.play_count || 0})`, ok: game.game.has_pbp },
     ];
   }, [game]);
 
@@ -185,8 +317,7 @@ export default function GameDetailClient() {
         {actionStatus && <div style={{ marginTop: "0.5rem", color: "#0f172a" }}>{actionStatus}</div>}
       </div>
 
-      <div className={styles.card}>
-        <h2>Team Stats</h2>
+      <CollapsibleSection title="Team Stats">
         {game.team_stats.length === 0 ? (
           <div style={{ color: "#475569" }}>No team stats found.</div>
         ) : (
@@ -211,10 +342,9 @@ export default function GameDetailClient() {
             ))}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className={styles.card}>
-        <h2>Player Stats</h2>
+      <CollapsibleSection title="Player Stats">
         {Object.keys(playerStatsByTeam).length === 0 ? (
           <div style={{ color: "#475569" }}>No player stats found.</div>
         ) : (
@@ -250,10 +380,9 @@ export default function GameDetailClient() {
             ))}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className={styles.card}>
-        <h2>Odds</h2>
+      <CollapsibleSection title="Odds">
         {game.odds.length === 0 ? (
           <div style={{ color: "#475569" }}>No odds found.</div>
         ) : (
@@ -307,27 +436,27 @@ export default function GameDetailClient() {
               <h3>Total</h3>
               {oddsByMarket.total.length === 0 ? (
                 <div className={styles.subtle}>No total odds for {selectedBook}</div>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Side</th>
-                <th>Line</th>
-                <th>Price</th>
-                <th>Observed</th>
-              </tr>
-            </thead>
-            <tbody>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Side</th>
+                      <th>Line</th>
+                      <th>Price</th>
+                      <th>Observed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {oddsByMarket.total.map((o, idx) => (
                       <tr key={`${o.side}-${idx}`}>
-                  <td>{o.side ?? "—"}</td>
-                  <td>{o.line ?? "—"}</td>
-                  <td>{o.price ?? "—"}</td>
-                  <td>{o.observed_at ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        <td>{o.side ?? "—"}</td>
+                        <td>{o.line ?? "—"}</td>
+                        <td>{o.price ?? "—"}</td>
+                        <td>{o.observed_at ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -358,10 +487,9 @@ export default function GameDetailClient() {
             </div>
           </>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className={styles.card}>
-        <h2>Social Posts</h2>
+      <CollapsibleSection title="Social Posts" defaultOpen={false}>
         {!game.social_posts || game.social_posts.length === 0 ? (
           <div style={{ color: "#475569" }}>No social posts found for this game.</div>
         ) : (
@@ -389,10 +517,11 @@ export default function GameDetailClient() {
             ))}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className={styles.card}>
-        <h2>Derived metrics</h2>
+      <PbpSection plays={game.plays || []} />
+
+      <CollapsibleSection title="Derived Metrics" defaultOpen={false}>
         {Object.keys(game.derived_metrics || {}).length === 0 ? (
           <div style={{ color: "#475569" }}>No derived metrics.</div>
         ) : (
@@ -413,7 +542,7 @@ export default function GameDetailClient() {
             </tbody>
           </table>
         )}
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

@@ -268,6 +268,12 @@ class GameSocialPost(Base):
     post_url: Mapped[str] = mapped_column("tweet_url", Text, nullable=False, unique=True)
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     has_video: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Content fields for custom X embed display
+    video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tweet_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_handle: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    media_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     game: Mapped[SportsGame] = relationship("SportsGame", back_populates="social_posts")

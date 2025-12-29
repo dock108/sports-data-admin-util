@@ -10,8 +10,12 @@ class CollectedPost(BaseModel):
     post_url: str = Field(..., description="Full URL to the X post")
     posted_at: datetime = Field(..., description="When the post was published")
     has_video: bool = Field(default=False, description="Whether post contains video")
-    text: str | None = Field(default=None, description="Post text for spoiler filtering (not stored)")
+    text: str | None = Field(default=None, description="Post text/caption")
     author_handle: str | None = Field(default=None, description="X handle of the author")
+    # Media content fields for custom embed display
+    video_url: str | None = Field(default=None, description="Direct video URL if available")
+    image_url: str | None = Field(default=None, description="Thumbnail or image URL")
+    media_type: str | None = Field(default=None, description="video, image, or none")
 
 
 class PostCollectionJob(BaseModel):

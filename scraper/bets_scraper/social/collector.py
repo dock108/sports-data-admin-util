@@ -347,15 +347,44 @@ class PlaywrightXCollector(XCollectorStrategy):
 
                     has_video = bool(
                         article.query_selector("video")
-                        or article.query_selector('[data-testid=\"videoPlayer\"]')
-                        or article.query_selector('[data-testid=\"videoThumbnail\"]')
+                        or article.query_selector('[data-testid="videoPlayer"]')
+                        or article.query_selector('[data-testid="videoThumbnail"]')
                     )
 
-                    # Capture text for spoiler filtering, but do not persist downstream
+                    # Extract text content for display
                     try:
-                        text_content = article.inner_text()
+                        # Get tweet text from the main text container
+                        text_el = article.query_selector('[data-testid="tweetText"]')
+                        text_content = text_el.inner_text() if text_el else None
                     except Exception:
                         text_content = None
+
+                    # Extract media URLs
+                    video_url = None
+                    image_url = None
+                    media_type = "none"
+
+                    # Try to get video source
+                    video_el = article.query_selector("video source")
+                    if video_el:
+                        video_url = video_el.get_attribute("src")
+                        if video_url:
+                            media_type = "video"
+                    
+                    # Try to get video poster or image
+                    if not video_url:
+                        video_poster = article.query_selector("video")
+                        if video_poster:
+                            image_url = video_poster.get_attribute("poster")
+                            media_type = "video"
+                    
+                    # Get image from photo container
+                    if not image_url:
+                        img_el = article.query_selector('[data-testid="tweetPhoto"] img')
+                        if img_el:
+                            image_url = img_el.get_attribute("src")
+                            if not media_type or media_type == "none":
+                                media_type = "image"
 
                     posts.append(
                         CollectedPost(
@@ -364,6 +393,9 @@ class PlaywrightXCollector(XCollectorStrategy):
                             has_video=has_video,
                             text=text_content,
                             author_handle=x_handle.lstrip("@"),
+                            video_url=video_url,
+                            image_url=image_url,
+                            media_type=media_type,
                         )
                     )
 
@@ -445,13 +477,18 @@ class XPostCollector:
                 if existing:
                     continue
 
-                # Create new post
+                # Create new post with all content fields
                 db_post = db_models.GameSocialPost(
                     game_id=job.game_id,
                     team_id=team.id,
                     post_url=post.post_url,
                     posted_at=post.posted_at,
                     has_video=post.has_video,
+                    tweet_text=post.text,
+                    source_handle=post.author_handle,
+                    video_url=post.video_url,
+                    image_url=post.image_url,
+                    media_type=post.media_type or "none",
                 )
                 session.add(db_post)
                 result.posts_saved += 1

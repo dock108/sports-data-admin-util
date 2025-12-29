@@ -91,13 +91,13 @@ def upsert_team_boxscores(session: Session, game_id: int, payloads: Sequence[Nor
                 game_id=game_id,
                 team_id=team_id,
                 is_home=payload.is_home,
-                stats=stats,
+                raw_stats_json=stats,
                 source="sports_reference",
             )
             .on_conflict_do_update(
                 constraint="uq_team_boxscore_game_team",
                 set_={
-                    "stats": stats_json,
+                    "raw_stats_json": stats_json,
                     "updated_at": utcnow(),
                 },
             )
@@ -130,13 +130,13 @@ def upsert_player_boxscores(session: Session, game_id: int, payloads: Sequence[N
                     team_id=team_id,
                     player_external_ref=payload.player_id,
                     player_name=payload.player_name,
-                    stats=stats,
+                    raw_stats_json=stats,
                     source="sports_reference",
                 )
                 .on_conflict_do_update(
                     constraint="uq_player_boxscore_identity",
                     set_={
-                        "stats": stats_json,
+                        "raw_stats_json": stats_json,
                         "updated_at": utcnow(),
                     },
                 )

@@ -120,6 +120,7 @@ export default function UnifiedBrowserPage() {
         playerStatsPercent: Math.round((aggregates.withPlayerStats / total) * 100),
         oddsPercent: Math.round((aggregates.withOdds / total) * 100),
         socialPercent: Math.round((aggregates.withSocial / total) * 100),
+        pbpPercent: Math.round((aggregates.withPbp / total) * 100),
       };
     }
     return null;
@@ -192,6 +193,10 @@ export default function UnifiedBrowserPage() {
                 <div className={styles.stat}>
                   <span className={styles.statValue}>{aggregateStats.socialPercent}%</span>
                   <span className={styles.statLabel}>W/ Social</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{aggregateStats.pbpPercent}%</span>
+                  <span className={styles.statLabel}>W/ PBP</span>
                 </div>
               </>
             )}
