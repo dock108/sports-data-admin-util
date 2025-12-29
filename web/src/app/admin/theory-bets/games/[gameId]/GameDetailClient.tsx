@@ -498,10 +498,26 @@ export default function GameDetailClient() {
               <div key={post.id} className={styles.socialPostCard}>
                 <div className={styles.socialPostHeader}>
                   <span className={styles.badge}>{post.team_abbreviation}</span>
-                  {post.has_video && (
+                  {post.source_handle && (
+                    <span className={styles.handleBadge}>@{post.source_handle}</span>
+                  )}
+                  {post.media_type === "video" && (
                     <span className={styles.videoBadge}>🎥 Video</span>
                   )}
+                  {post.media_type === "image" && (
+                    <span className={styles.imageBadge}>🖼️ Image</span>
+                  )}
                 </div>
+                {post.tweet_text && (
+                  <div className={styles.tweetText}>{post.tweet_text}</div>
+                )}
+                {post.image_url && (
+                  <img 
+                    src={post.image_url} 
+                    alt="Tweet media" 
+                    className={styles.tweetImage}
+                  />
+                )}
                 <div className={styles.socialPostMeta}>
                   {new Date(post.posted_at).toLocaleString()}
                 </div>

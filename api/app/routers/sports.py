@@ -180,6 +180,11 @@ class SocialPostEntry(BaseModel):
     posted_at: datetime
     has_video: bool
     team_abbreviation: str
+    tweet_text: str | None = None
+    video_url: str | None = None
+    image_url: str | None = None
+    source_handle: str | None = None
+    media_type: str | None = None
 
 
 class PlayEntry(BaseModel):
@@ -711,6 +716,11 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
             posted_at=post.posted_at,
             has_video=post.has_video,
             team_abbreviation=team_abbr,
+            tweet_text=post.tweet_text,
+            video_url=post.video_url,
+            image_url=post.image_url,
+            source_handle=post.source_handle,
+            media_type=post.media_type,
         ))
 
     derived = compute_derived_metrics(game, game.odds)

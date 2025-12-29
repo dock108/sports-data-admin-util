@@ -100,6 +100,11 @@ export type SocialPost = {
   posted_at: string;
   has_video: boolean;
   team_abbreviation: string;
+  tweet_text: string | null;
+  video_url: string | null;
+  image_url: string | null;
+  source_handle: string | null;
+  media_type: string | null;
 };
 
 export type PlayEntry = {

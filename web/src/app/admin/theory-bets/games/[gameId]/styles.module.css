@@ -210,6 +210,38 @@
   text-decoration: underline;
 }
 
+.handleBadge {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.imageBadge {
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.tweetText {
+  font-size: 0.9rem;
+  color: #1e293b;
+  line-height: 1.4;
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tweetImage {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  max-height: 200px;
+  object-fit: cover;
+}
+
 /* Collapsible sections */
 .collapsibleHeader {
   display: flex;
