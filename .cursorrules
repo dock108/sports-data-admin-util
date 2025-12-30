@@ -1,0 +1,52 @@
+# Cursor Rules — Sports Admin
+
+## Purpose
+Provide reliable, structured sports data that downstream apps (like Scroll Down Sports) can trust.
+
+## Core Values
+- Stability over speed
+- Predictable schemas
+- Traceable changes
+- Zero silent failures
+
+## Decision Making
+- If something is ambiguous, stop and clarify in TODO or comments.
+- Never guess on data interpretation.
+- Prefer explicit validation over “assuming it works”.
+
+## Data Rules
+- All ingested data should be normalized before storage.
+- Every transformation must be explainable.
+- Add validation checks when feasible.
+- Log failures. Do not ignore them.
+
+## Code Practices
+- Small, focused modules.
+- Avoid overly clever pipelines.
+- Prefer clarity over micro-optimizations.
+- Keep side effects obvious (no hidden mutations).
+
+## Breaking Changes
+If a schema or behavior change affects consumers:
+- document it clearly
+- bump versions or flags when appropriate
+- never break consumers silently
+
+## Documentation
+When touching data or logic:
+- update README with any workflow or API changes
+- briefly note changes in CHANGELOG
+- add comments on WHY choices were made
+
+## Testing
+- Add tests for parsing, validation, and transformers.
+- When bugs are fixed, add regression coverage.
+
+## What NOT to do
+- Don’t refactor “for style”.
+- Don’t introduce new dependencies casually.
+- Don’t hide errors to keep pipelines running.
+
+## Golden Rule
+If downstream systems depend on it,
+be boring, explicit, and reliable.
