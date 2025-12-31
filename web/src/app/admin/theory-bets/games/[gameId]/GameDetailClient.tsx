@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchGame, rescrapeGame, resyncOdds, type AdminGameDetail } from "@/lib/api/sportsAdmin";
+import { SocialMediaRenderer } from "@/components/social/SocialMediaRenderer";
 import styles from "./styles.module.css";
 
 /** Collapsible section component */
@@ -495,14 +496,6 @@ export default function GameDetailClient() {
         ) : (
           <div className={styles.socialPostsGrid}>
             {game.social_posts.map((post) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/bbcc1fde-07f2-48ee-a458-9336304655ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameDetailClient.tsx:social_post_render',message:'Social post data',data:{postId:post.id,mediaType:post.media_type,hasImageUrl:!!post.image_url,imageUrlPreview:post.image_url?.substring(0,50),hasVideoUrl:!!post.video_url,hasTweetText:!!post.tweet_text},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-              // #endregion
-              const isVideo = post.media_type === "video";
-              const hasImage = !!post.image_url;
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/bbcc1fde-07f2-48ee-a458-9336304655ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameDetailClient.tsx:video_check',message:'Video render decision',data:{postId:post.id,isVideo,hasImage,willRenderVideoThumb:isVideo && hasImage},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-              // #endregion
               return (
               <div key={post.id} className={styles.socialPostCard}>
                 <div className={styles.socialPostHeader}>
@@ -520,35 +513,16 @@ export default function GameDetailClient() {
                 {post.tweet_text && (
                   <div className={styles.tweetText}>{post.tweet_text}</div>
                 )}
-                {post.media_type === "video" && post.image_url ? (
-                  <a href={post.post_url} target="_blank" rel="noopener noreferrer" className={styles.videoThumbnailLink}>
-                    <div className={styles.videoThumbnailWrapper}>
-                      <img 
-                        src={post.image_url} 
-                        alt="Video thumbnail" 
-                        className={styles.tweetImage}
-                      />
-                      <div className={styles.playOverlay}>▶</div>
-                    </div>
-                  </a>
-                ) : post.media_type === "image" && post.image_url ? (
-                  <img 
-                    src={post.image_url} 
-                    alt="Tweet media" 
-                    className={styles.tweetImage}
-                  />
-                ) : null}
+                <SocialMediaRenderer
+                  mediaType={post.media_type}
+                  imageUrl={post.image_url}
+                  videoUrl={post.video_url}
+                  postUrl={post.post_url}
+                  linkClassName={styles.socialPostLink}
+                />
                 <div className={styles.socialPostMeta}>
                   {new Date(post.posted_at).toLocaleString()}
                 </div>
-                <a 
-                  href={post.post_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={styles.socialPostLink}
-                >
-                  View on X →
-                </a>
               </div>
               );
             })}
@@ -583,4 +557,3 @@ export default function GameDetailClient() {
     </div>
   );
 }
-
