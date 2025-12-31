@@ -1,53 +1,67 @@
-"""Play-by-play persistence helpers."""
+"""Play-by-play persistence utilities."""
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
 
 from ..db import db_models
 from ..logging import logger
-from ..models import NormalizedPlay
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
-def _resolve_team_id(play: NormalizedPlay, game: db_models.SportsGame | None) -> int | None:
-    """Best-effort mapping from play.team_abbreviation to game team ids."""
-    if not play.team_abbreviation or not game:
-        return None
-
-    abbr = play.team_abbreviation.upper()
-    try:
-        if game.home_team and game.home_team.abbreviation and game.home_team.abbreviation.upper() == abbr:
-            return game.home_team_id
-        if game.away_team and game.away_team.abbreviation and game.away_team.abbreviation.upper() == abbr:
-            return game.away_team_id
-    except Exception:
-        return None
-    return None
+    from ..models import NormalizedPlay
 
 
 def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]) -> int:
-    """Upsert play-by-play events for a game.
-    
-    Returns the number of plays processed (inserted or updated).
+    """
+    Upsert play-by-play events for a game.
+
+    Uses PostgreSQL ON CONFLICT to update existing plays if they exist.
+
+    Args:
+        session: Database session
+        game_id: ID of the game
+        plays: List of normalized play events
+
+    Returns:
+        Number of plays upserted
     """
     if not plays:
         return 0
 
-    game = session.get(db_models.SportsGame, game_id)
-    processed = 0
+    # Get the game to look up team IDs
+    game = session.query(db_models.SportsGame).filter(
+        db_models.SportsGame.id == game_id
+    ).first()
 
+    if not game:
+        logger.warning("upsert_plays_game_not_found", game_id=game_id)
+        return 0
+
+    # Build team abbreviation to ID mapping
+    team_map: dict[str, int] = {}
+    if game.home_team:
+        team_map[game.home_team.abbreviation.upper()] = game.home_team.id
+    if game.away_team:
+        team_map[game.away_team.abbreviation.upper()] = game.away_team.id
+
+    upserted = 0
     for play in plays:
-        team_id = _resolve_team_id(play, game)
+        # Resolve team_id from abbreviation
+        team_id = None
+        if play.team_abbreviation:
+            team_id = team_map.get(play.team_abbreviation.upper())
+
         stmt = (
             insert(db_models.SportsGamePlay)
             .values(
                 game_id=game_id,
+                play_index=play.play_index,
                 quarter=play.quarter,
                 game_clock=play.game_clock,
-                play_index=play.play_index,
                 play_type=play.play_type,
                 team_id=team_id,
                 player_id=play.player_id,
@@ -55,11 +69,13 @@ def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]
                 description=play.description,
                 home_score=play.home_score,
                 away_score=play.away_score,
-                raw_data={**play.raw_data, "team_abbreviation": play.team_abbreviation},
+                raw_data=play.raw_data,
             )
             .on_conflict_do_update(
                 index_elements=["game_id", "play_index"],
                 set_={
+                    "quarter": play.quarter,
+                    "game_clock": play.game_clock,
                     "play_type": play.play_type,
                     "team_id": team_id,
                     "player_id": play.player_id,
@@ -67,15 +83,13 @@ def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]
                     "description": play.description,
                     "home_score": play.home_score,
                     "away_score": play.away_score,
-                    "raw_data": {**play.raw_data, "team_abbreviation": play.team_abbreviation},
+                    "raw_data": play.raw_data,
                 },
             )
         )
         session.execute(stmt)
-        processed += 1
+        upserted += 1
 
-    logger.info("pbp_plays_upserted", game_id=game_id, plays=processed)
-    return processed
-
-
+    logger.info("plays_upserted", game_id=game_id, count=upserted)
+    return upserted
 

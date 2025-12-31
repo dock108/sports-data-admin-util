@@ -197,7 +197,7 @@ class SportsGameOdds(Base):
 
 
 class SportsGamePlay(Base):
-    """Play-by-play events captured per game."""
+    """Play-by-play events for games."""
 
     __tablename__ = "sports_game_plays"
 
@@ -216,13 +216,11 @@ class SportsGamePlay(Base):
     raw_data: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    game: Mapped[SportsGame] = relationship("SportsGame", back_populates="plays")
-    team: Mapped[SportsTeam | None] = relationship("SportsTeam")
+    game: Mapped["SportsGame"] = relationship("SportsGame", back_populates="plays")
 
     __table_args__ = (
+        Index("idx_game_plays_game", "game_id"),
         UniqueConstraint("game_id", "play_index", name="uq_game_play_index"),
-        Index("idx_game_plays_player", "player_id"),
-        Index("idx_game_plays_type", "play_type"),
     )
 
 
@@ -268,10 +266,9 @@ class GameSocialPost(Base):
     post_url: Mapped[str] = mapped_column("tweet_url", Text, nullable=False, unique=True)
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     has_video: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Content fields for custom X embed display
+    tweet_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    tweet_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_handle: Mapped[str | None] = mapped_column(String(100), nullable=True)
     media_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -283,6 +280,7 @@ class GameSocialPost(Base):
         Index("idx_social_posts_game", "game_id"),
         Index("idx_social_posts_team", "team_id"),
         Index("idx_social_posts_posted_at", "posted_at"),
+        Index("idx_social_posts_media_type", "media_type"),
     )
 
 

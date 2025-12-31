@@ -317,7 +317,7 @@ export default function GameDetailClient() {
         {actionStatus && <div style={{ marginTop: "0.5rem", color: "#0f172a" }}>{actionStatus}</div>}
       </div>
 
-      <CollapsibleSection title="Team Stats">
+      <CollapsibleSection title="Team Stats" defaultOpen={false}>
         {game.team_stats.length === 0 ? (
           <div style={{ color: "#475569" }}>No team stats found.</div>
         ) : (
@@ -344,7 +344,7 @@ export default function GameDetailClient() {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Player Stats">
+      <CollapsibleSection title="Player Stats" defaultOpen={false}>
         {Object.keys(playerStatsByTeam).length === 0 ? (
           <div style={{ color: "#475569" }}>No player stats found.</div>
         ) : (
@@ -382,7 +382,7 @@ export default function GameDetailClient() {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Odds">
+      <CollapsibleSection title="Odds" defaultOpen={false}>
         {game.odds.length === 0 ? (
           <div style={{ color: "#475569" }}>No odds found.</div>
         ) : (
@@ -494,7 +494,16 @@ export default function GameDetailClient() {
           <div style={{ color: "#475569" }}>No social posts found for this game.</div>
         ) : (
           <div className={styles.socialPostsGrid}>
-            {game.social_posts.map((post) => (
+            {game.social_posts.map((post) => {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/bbcc1fde-07f2-48ee-a458-9336304655ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameDetailClient.tsx:social_post_render',message:'Social post data',data:{postId:post.id,mediaType:post.media_type,hasImageUrl:!!post.image_url,imageUrlPreview:post.image_url?.substring(0,50),hasVideoUrl:!!post.video_url,hasTweetText:!!post.tweet_text},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+              // #endregion
+              const isVideo = post.media_type === "video";
+              const hasImage = !!post.image_url;
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/bbcc1fde-07f2-48ee-a458-9336304655ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameDetailClient.tsx:video_check',message:'Video render decision',data:{postId:post.id,isVideo,hasImage,willRenderVideoThumb:isVideo && hasImage},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
+              // #endregion
+              return (
               <div key={post.id} className={styles.socialPostCard}>
                 <div className={styles.socialPostHeader}>
                   <span className={styles.badge}>{post.team_abbreviation}</span>
@@ -511,13 +520,24 @@ export default function GameDetailClient() {
                 {post.tweet_text && (
                   <div className={styles.tweetText}>{post.tweet_text}</div>
                 )}
-                {post.image_url && (
+                {post.media_type === "video" && post.image_url ? (
+                  <a href={post.post_url} target="_blank" rel="noopener noreferrer" className={styles.videoThumbnailLink}>
+                    <div className={styles.videoThumbnailWrapper}>
+                      <img 
+                        src={post.image_url} 
+                        alt="Video thumbnail" 
+                        className={styles.tweetImage}
+                      />
+                      <div className={styles.playOverlay}>▶</div>
+                    </div>
+                  </a>
+                ) : post.media_type === "image" && post.image_url ? (
                   <img 
                     src={post.image_url} 
                     alt="Tweet media" 
                     className={styles.tweetImage}
                   />
-                )}
+                ) : null}
                 <div className={styles.socialPostMeta}>
                   {new Date(post.posted_at).toLocaleString()}
                 </div>
@@ -530,7 +550,8 @@ export default function GameDetailClient() {
                   View on X →
                 </a>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CollapsibleSection>
