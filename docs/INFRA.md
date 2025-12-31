@@ -41,4 +41,4 @@ docker compose down               # Stop all
 docker compose down -v            # Stop and delete volumes
 ```
 
-See root [README.md](../README.md) for full documentation.
+See the [root README](../README.md) for setup details and the [docs index](INDEX.md) for more guides.

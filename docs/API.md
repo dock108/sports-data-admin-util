@@ -27,4 +27,4 @@ uvicorn main:app --reload --port 8000
 | `DATABASE_URL` | Yes | PostgreSQL (asyncpg driver) |
 | `REDIS_URL` | Yes | Redis for Celery broker |
 
-See root [README.md](../README.md) for full documentation.
+See the [root README](../README.md) for setup details and the [docs index](INDEX.md) for more guides.
