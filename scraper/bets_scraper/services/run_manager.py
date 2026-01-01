@@ -330,23 +330,24 @@ class ScrapeRunManager:
 
             # Social post scraping
             if config.include_social or config.backfill_social:
+                # include_social: only scrape games without posts
+                # backfill_social: rescrape all games to refresh/upsert data
+                skip_existing = config.include_social and not config.backfill_social
                 logger.info(
                     "starting_social_scraping",
                     run_id=run_id,
                     league=config.league_code,
                     start=str(start),
                     end=str(end),
-                    skip_existing=True,  # Always skip games with existing posts
+                    skip_existing=skip_existing,
                 )
                 with get_session() as session:
-                    # Always skip games that already have social posts
-                    # (no need to re-scrape - social posts don't change)
                     game_ids = self._get_games_for_social(
                         session,
                         config.league_code,
                         start,
                         end,
-                        only_missing=True,  # Always skip games with existing posts
+                        only_missing=skip_existing,
                     )
                 logger.info("found_games_for_social", count=len(game_ids), run_id=run_id)
 

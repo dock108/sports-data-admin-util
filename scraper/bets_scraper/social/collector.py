@@ -486,45 +486,55 @@ class XPostCollector:
                 return result
 
             # Process each post
+            posts_updated = 0
             for post in posts:
                 # Filter spoilers if enabled
                 if self.filter_spoilers and post.text and contains_spoiler(post.text):
                     result.posts_filtered += 1
                     continue
 
-                # Check for duplicate
+                # Check for existing post by URL
                 existing = session.query(db_models.GameSocialPost).filter(
                     db_models.GameSocialPost.post_url == post.post_url
                 ).first()
 
                 if existing:
-                    continue
-
-                # Create new post with all content fields
-                db_post = db_models.GameSocialPost(
-                    game_id=job.game_id,
-                    team_id=team.id,
-                    post_url=post.post_url,
-                    posted_at=post.posted_at,
-                    has_video=post.has_video,
-                    tweet_text=post.text,
-                    source_handle=post.author_handle,
-                    video_url=post.video_url,
-                    image_url=post.image_url,
-                    media_type=post.media_type or "none",
-                )
-                session.add(db_post)
-                result.posts_saved += 1
+                    # Full upsert: update all fields with fresh data
+                    existing.posted_at = post.posted_at
+                    existing.has_video = post.has_video
+                    existing.tweet_text = post.text
+                    existing.source_handle = post.author_handle
+                    existing.video_url = post.video_url
+                    existing.image_url = post.image_url
+                    existing.media_type = post.media_type or "none"
+                    posts_updated += 1
+                else:
+                    # Create new post with all content fields
+                    db_post = db_models.GameSocialPost(
+                        game_id=job.game_id,
+                        team_id=team.id,
+                        post_url=post.post_url,
+                        posted_at=post.posted_at,
+                        has_video=post.has_video,
+                        tweet_text=post.text,
+                        source_handle=post.author_handle,
+                        video_url=post.video_url,
+                        image_url=post.image_url,
+                        media_type=post.media_type or "none",
+                    )
+                    session.add(db_post)
+                    result.posts_saved += 1
 
             # Commit immediately so posts are persisted (don't wait for batch end)
             # This ensures we don't lose progress if scraper crashes
-            if result.posts_saved > 0:
+            if result.posts_saved > 0 or posts_updated > 0:
                 session.commit()
                 logger.debug(
                     "x_posts_committed",
                     game_id=job.game_id,
                     team=job.team_abbreviation,
-                    count=result.posts_saved,
+                    saved=result.posts_saved,
+                    updated=posts_updated,
                 )
             
             result.completed_at = datetime.utcnow()
