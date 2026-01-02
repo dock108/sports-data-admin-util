@@ -1,79 +1,142 @@
 version: 2
 updates:
-  # Python dependencies (API)
+  # Keep Python API dependencies up to date (pip)
   - package-ecosystem: "pip"
     directory: "/api"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(api)"
     labels:
       - "dependencies"
       - "python"
+      - "api"
+    open-pull-requests-limit: 10
     groups:
-      python-api-all:
+      minor-and-patch:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Python dependencies (Scraper)
+  # Keep Python scraper dependencies up to date (pip/pyproject.toml)
   - package-ecosystem: "pip"
     directory: "/scraper"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(scraper)"
     labels:
       - "dependencies"
       - "python"
+      - "scraper"
+    open-pull-requests-limit: 10
     groups:
-      python-scraper-all:
+      minor-and-patch:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Node.js - Root workspace (covers all packages)
+  # Keep root npm/pnpm workspace dependencies up to date
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(root)"
     labels:
       - "dependencies"
-      - "javascript"
-    groups:
-      npm-all-production:
-        dependency-type: "production"
-        patterns:
-          - "*"
-      npm-all-development:
-        dependency-type: "development"
-        patterns:
-          - "*"
+      - "npm"
+    open-pull-requests-limit: 5
 
-  # Docker dependencies
+  # Keep web admin npm dependencies up to date
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(web)"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "web"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep js-core package dependencies up to date
+  - package-ecosystem: "npm"
+    directory: "/packages/js-core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(js-core)"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 5
+
+  # Keep ui package dependencies up to date
+  - package-ecosystem: "npm"
+    directory: "/packages/ui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(ui)"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 5
+
+  # Keep ui-kit package dependencies up to date
+  - package-ecosystem: "npm"
+    directory: "/packages/ui-kit"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(ui-kit)"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 5
+
+  # Keep Docker base images up to date
   - package-ecosystem: "docker"
     directory: "/infra"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 1
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "docker"
     labels:
       - "dependencies"
       - "docker"
-    groups:
-      docker-all:
-        patterns:
-          - "*"
+    open-pull-requests-limit: 5
 
-  # GitHub Actions
+  # Keep GitHub Actions up to date
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 1
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"
     labels:
       - "dependencies"
-      - "ci"
-    groups:
-      actions-all:
-        patterns:
-          - "*"
+      - "github-actions"
+    open-pull-requests-limit: 5
