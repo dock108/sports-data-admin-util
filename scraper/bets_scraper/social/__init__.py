@@ -5,14 +5,10 @@ This module provides infrastructure for collecting and managing
 social posts from team X accounts.
 """
 
+from .collector import MockXCollector, XApiCollector, XPostCollector
+from .collector_base import XCollectorStrategy
 from .models import CollectedPost, PostCollectionJob, PostCollectionResult
-from .collector import (
-    XPostCollector,
-    XCollectorStrategy,
-    MockXCollector,
-    XApiCollector,
-    PlaywrightXCollector,
-)
+from .playwright_collector import PlaywrightXCollector
 
 __all__ = [
     "CollectedPost",
@@ -24,4 +20,3 @@ __all__ = [
     "XApiCollector",
     "PlaywrightXCollector",
 ]
-
