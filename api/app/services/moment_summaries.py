@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from .. import db_models
 from ..db import AsyncSession
 from ..utils.datetime_utils import now_utc
+from ..utils.score_redaction import redact_scores
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,6 @@ class _MomentSummaryCacheEntry:
 _moment_summary_cache: dict[tuple[int, int], _MomentSummaryCacheEntry] = {}
 
 
-_SCORE_PATTERN = re.compile(r"\b\d{1,3}\s*[-–:]\s*\d{1,3}\b")
-_SCORE_AT_PATTERN = re.compile(r"\b\d{1,3}\s*(?:to|at)\s*\d{1,3}\b", re.IGNORECASE)
 _FINAL_SCORE_PATTERN = re.compile(r"\bfinal\s+score\b", re.IGNORECASE)
 _BANNED_PHRASES_PATTERN = re.compile(r"\b(game\s*winner|game-winner|final\s+drive)\b", re.IGNORECASE)
 _WHITESPACE_PATTERN = re.compile(r"\s+")
@@ -154,7 +153,7 @@ def _generate_ai_summary(plays: Sequence[db_models.SportsGamePlay]) -> str:
     summary = _build_summary_from_plays(plays)
     if not summary:
         raise ValueError("Failed to build summary")
-    return summary
+    return _redact_summary(summary)
 
 
 def _fallback_summary(plays: Sequence[db_models.SportsGamePlay]) -> str:
@@ -229,11 +228,20 @@ def _contains_type(play_types: set[str], targets: set[str]) -> bool:
 
 
 def _sanitize_text(text: str) -> str:
-    cleaned = _SCORE_PATTERN.sub("", text)
-    cleaned = _SCORE_AT_PATTERN.sub("", cleaned)
+    cleaned = redact_scores(text)
     cleaned = _FINAL_SCORE_PATTERN.sub("", cleaned)
     cleaned = _BANNED_PHRASES_PATTERN.sub("", cleaned)
     cleaned = cleaned.replace("  ", " ")
+    cleaned = _WHITESPACE_PATTERN.sub(" ", cleaned).strip()
+    if cleaned and cleaned[-1] not in ".!?":
+        cleaned = f"{cleaned}."
+    return cleaned
+
+
+def _redact_summary(text: str) -> str:
+    cleaned = redact_scores(text)
+    cleaned = _FINAL_SCORE_PATTERN.sub("", cleaned)
+    cleaned = _BANNED_PHRASES_PATTERN.sub("", cleaned)
     cleaned = _WHITESPACE_PATTERN.sub(" ", cleaned).strip()
     if cleaned and cleaned[-1] not in ".!?":
         cleaned = f"{cleaned}."

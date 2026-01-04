@@ -91,6 +91,27 @@ class TestMomentSummaryService(unittest.TestCase):
         summary = asyncio.run(moment_summaries.summarize_moment(3, 12, _ErrorSession()))
         self.assertEqual(summary, "Moment recap unavailable.")
 
+    def test_summary_redacts_scores(self) -> None:
+        play = SimpleNamespace(
+            id=30,
+            game_id=4,
+            play_index=1,
+            play_type="shot",
+            description="Cats lead 102-99 with a quick jumper.",
+            raw_data={"team_abbreviation": "CAT"},
+        )
+        session = _FakeSession(
+            [
+                _FakeResult(scalar_value=play),
+                _FakeResult(scalar_value=None),
+                _FakeResult(scalars_value=[play]),
+            ]
+        )
+
+        summary = asyncio.run(moment_summaries.summarize_moment(4, 1, session))
+        self.assertTrue(summary)
+        self.assertNotRegex(summary, r"\\d")
+
 
 if __name__ == "__main__":
     unittest.main()

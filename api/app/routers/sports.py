@@ -20,6 +20,7 @@ from ..db import AsyncSession, get_db
 from ..services.derived_metrics import compute_derived_metrics
 from ..services.moment_summaries import summarize_moment
 from ..utils.datetime_utils import now_utc
+from ..utils.score_redaction import contains_explicit_score
 
 router = APIRouter(prefix="/api/admin/sports", tags=["sports-data"])
 
@@ -369,20 +370,11 @@ def _build_score_chips(plays: Sequence[db_models.SportsGamePlay]) -> list[ScoreC
     return score_chips
 
 
-_SCORE_PATTERN = re.compile(r"\b\d{1,3}\s*[-–:]\s*\d{1,3}\b")
-_SCORE_WORD_PATTERN = re.compile(r"\b(final|score|halftime|ft|full\s*time)\b", re.IGNORECASE)
-_SCORE_ALT_PATTERN = re.compile(r"\b\d{1,3}\s*(?:to|at)\s*\d{1,3}\b", re.IGNORECASE)
 _URL_PATTERN = re.compile(r"https?://\S+")
 
 
 def _post_contains_score(text: str | None) -> bool:
-    if not text:
-        return False
-    if _SCORE_PATTERN.search(text):
-        return True
-    if _SCORE_ALT_PATTERN.search(text) and _SCORE_WORD_PATTERN.search(text):
-        return True
-    return False
+    return contains_explicit_score(text)
 
 
 def _normalize_post_text(text: str | None) -> str | None:
