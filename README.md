@@ -98,6 +98,10 @@ sports-data-admin/
 
 See [docs/INDEX.md](docs/INDEX.md) for platform details, infrastructure docs, integration guides, and runbooks.
 
+## Admin API Notes
+
+- `GET /api/admin/sports/games/{id}/compact/{moment_id}/pbp` returns the play-by-play slice for a compact moment.
+
 ## License
 
 Private — Dock108

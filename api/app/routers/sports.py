@@ -221,6 +221,10 @@ class CompactMomentsResponse(BaseModel):
     moment_types: list[str] = Field(alias="momentTypes")
 
 
+class CompactPbpResponse(BaseModel):
+    plays: list[PlayEntry]
+
+
 class GameDetailResponse(BaseModel):
     game: GameMeta
     team_stats: list[TeamStat]
@@ -266,6 +270,32 @@ def _build_compact_hint(play: db_models.SportsGamePlay, moment_type: str) -> str
     if not hint_parts and moment_type != "unknown":
         hint_parts.append(moment_type.replace("_", " ").title())
     return " - ".join(hint_parts) if hint_parts else None
+
+
+def _serialize_play_entry(play: db_models.SportsGamePlay) -> PlayEntry:
+    return PlayEntry(
+        play_index=play.play_index,
+        quarter=play.quarter,
+        game_clock=play.game_clock,
+        play_type=play.play_type,
+        team_abbreviation=play.raw_data.get("team_abbreviation") if isinstance(play.raw_data, dict) else None,
+        player_name=play.player_name,
+        description=play.description,
+        home_score=play.home_score,
+        away_score=play.away_score,
+    )
+
+
+def _find_compact_moment_bounds(
+    moments: Sequence[CompactMoment],
+    moment_id: int,
+) -> tuple[int, int | None]:
+    for index, moment in enumerate(moments):
+        if moment.play_index == moment_id:
+            next_play_index = moments[index + 1].play_index if index + 1 < len(moments) else None
+            end_index = next_play_index - 1 if next_play_index is not None else None
+            return moment.play_index, end_index
+    raise ValueError(f"Moment not found for play_index={moment_id}")
 
 
 async def _get_league(session: AsyncSession, code: str) -> db_models.SportsLeague:
@@ -712,6 +742,45 @@ async def get_game_compact(game_id: int, session: AsyncSession = Depends(get_db)
     return response
 
 
+@router.get("/games/{game_id}/compact/{moment_id}/pbp", response_model=CompactPbpResponse)
+async def get_game_compact_pbp(
+    game_id: int,
+    moment_id: int,
+    session: AsyncSession = Depends(get_db),
+) -> CompactPbpResponse:
+    compact_response = _get_compact_cache(game_id)
+    if compact_response is None:
+        compact_response = await get_game_compact(game_id, session)
+
+    try:
+        start_index, end_index = _find_compact_moment_bounds(compact_response.moments, moment_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    if end_index is None:
+        max_index_stmt = select(func.max(db_models.SportsGamePlay.play_index)).where(
+            db_models.SportsGamePlay.game_id == game_id
+        )
+        end_index = (await session.execute(max_index_stmt)).scalar_one_or_none()
+
+    if end_index is None or end_index < start_index:
+        return CompactPbpResponse(plays=[])
+
+    plays_stmt = (
+        select(db_models.SportsGamePlay)
+        .where(
+            db_models.SportsGamePlay.game_id == game_id,
+            db_models.SportsGamePlay.play_index >= start_index,
+            db_models.SportsGamePlay.play_index <= end_index,
+        )
+        .order_by(db_models.SportsGamePlay.play_index)
+    )
+    plays_result = await session.execute(plays_stmt)
+    plays = plays_result.scalars().all()
+    plays_entries = [_serialize_play_entry(play) for play in plays]
+    return CompactPbpResponse(plays=plays_entries)
+
+
 @router.get("/games/{game_id}", response_model=GameDetailResponse)
 async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> GameDetailResponse:
     result = await session.execute(
@@ -747,21 +816,7 @@ async def get_game(game_id: int, session: AsyncSession = Depends(get_db)) -> Gam
         for odd in game.odds
     ]
 
-    plays_entries: list[PlayEntry] = []
-    for play in sorted(game.plays, key=lambda p: p.play_index):
-        plays_entries.append(
-            PlayEntry(
-                play_index=play.play_index,
-                quarter=play.quarter,
-                game_clock=play.game_clock,
-                play_type=play.play_type,
-                team_abbreviation=play.raw_data.get("team_abbreviation") if isinstance(play.raw_data, dict) else None,
-                player_name=play.player_name,
-                description=play.description,
-                home_score=play.home_score,
-                away_score=play.away_score,
-            )
-        )
+    plays_entries = [_serialize_play_entry(play) for play in sorted(game.plays, key=lambda p: p.play_index)]
 
     meta = GameMeta(
         id=game.id,
