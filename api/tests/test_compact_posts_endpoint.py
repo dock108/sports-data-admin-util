@@ -9,8 +9,8 @@ from typing import AsyncGenerator
 
 from fastapi.testclient import TestClient
 
-from api.app.db import get_db
-from api.app.routers import sports as sports_router
+from app.db import get_db
+from app.routers import sports as sports_router
 from api.main import app
 
 
