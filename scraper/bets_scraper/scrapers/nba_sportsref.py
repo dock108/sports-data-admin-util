@@ -36,16 +36,14 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
     def pbp_url(self, source_game_key: str) -> str:
         return f"https://www.basketball-reference.com/boxscores/pbp/{source_game_key}.html"
 
-    # _parse_team_row now inherited from base class
-
     def _extract_team_stats(self, soup: BeautifulSoup, team_abbr: str) -> dict:
         """Extract team stats from boxscore table."""
         from ..utils.html_parsing import extract_team_stats_from_table, find_table_by_id, get_table_ids_on_page
-        
+
         # Basketball Reference uses UPPERCASE team abbreviations in table IDs
         table_id = f"box-{team_abbr.upper()}-game-basic"
         table = find_table_by_id(soup, table_id)
-        
+
         if not table:
             # Log all table IDs found on the page to help debug
             table_ids = get_table_ids_on_page(soup, limit=15)
@@ -56,7 +54,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
                 available_tables=table_ids,
             )
             return {}
-        
+
         return extract_team_stats_from_table(table, team_abbr, table_id)
 
     def _extract_player_stats(
@@ -64,11 +62,11 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
     ) -> list[NormalizedPlayerBoxscore]:
         """Parse individual player rows from box-{TEAM}-game-basic table."""
         from ..utils.html_parsing import find_player_table
-        
+
         # Basketball Reference uses UPPERCASE team abbreviations in table IDs
         table_id = f"box-{team_abbr.upper()}-game-basic"
         table = find_player_table(soup, table_id)
-        
+
         if not table:
             logger.warning("player_stats_table_not_found", table_id=table_id, team=team_abbr)
             return []
@@ -154,8 +152,6 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
             raw_stats=stats,
         )
 
-    # _season_from_date now inherited from base class
-
     def fetch_games_for_date(self, day: date) -> Sequence[NormalizedGame]:
         soup = self.fetch_html(self.scoreboard_url(day), game_date=day)
         game_divs = soup.select("div.game_summary")
@@ -214,7 +210,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
 
     def fetch_single_boxscore(self, source_game_key: str, game_date: date) -> NormalizedGame | None:
         """Fetch boxscore for a single game by its source key.
-        
+
         Used for backfilling player stats on existing games.
         source_game_key format: e.g., "202410220BOS"
         """
@@ -259,7 +255,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
                 score_div = div.find("div", class_="scores")
             if not score_div:
                 return None
-            
+
             score = parse_int(score_div.text.strip())
             if score is None:
                 return None
@@ -370,7 +366,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         play_index: int,
     ) -> NormalizedPlay | None:
         """Parse a single play-by-play row.
-        
+
         Basketball Reference PBP table has 6 columns:
         - Time | Away Action | (empty) | Score | (empty) | Home Action
         - Some rows (jump balls, timeouts) have colspan spanning multiple cells
@@ -447,7 +443,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
 
     def fetch_play_by_play(self, source_game_key: str, game_date: date) -> NormalizedPlayByPlay:
         """Fetch and parse play-by-play for a single game.
-        
+
         Basketball Reference PBP page has a single table with id="pbp".
         Quarters are marked by rows with class="thead" and id="q1", "q2", etc.
         """
@@ -470,7 +466,7 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         for row in table.find_all("tr"):
             row_classes = row.get("class", [])
             row_id = row.get("id", "")
-            
+
             # Check for quarter header rows (e.g., id="q1", id="q2", etc.)
             if row_id and row_id.startswith("q") and len(row_id) == 2:
                 try:
@@ -500,5 +496,4 @@ class NBASportsReferenceScraper(BaseSportsReferenceScraper):
         )
 
         return NormalizedPlayByPlay(source_game_key=source_game_key, plays=plays)
-
 
