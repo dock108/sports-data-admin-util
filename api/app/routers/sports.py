@@ -232,9 +232,17 @@ class CompactMoment(BaseModel):
     hint: str | None = None
 
 
+class ScoreChip(BaseModel):
+    play_index: int = Field(alias="playIndex")
+    label: str
+    home_score: int = Field(alias="homeScore")
+    away_score: int = Field(alias="awayScore")
+
+
 class CompactMomentsResponse(BaseModel):
     moments: list[CompactMoment]
     moment_types: list[str] = Field(alias="momentTypes")
+    score_chips: list[ScoreChip] = Field(default_factory=list, alias="scoreChips")
 
 
 class CompactPbpResponse(BaseModel):
@@ -308,6 +316,57 @@ def _serialize_play_entry(play: db_models.SportsGamePlay) -> PlayEntry:
         home_score=play.home_score,
         away_score=play.away_score,
     )
+
+
+_SCORE_CHIP_LABELS = {
+    1: "End Q1",
+    2: "Halftime",
+    3: "End Q3",
+}
+
+
+def _build_score_chips(plays: Sequence[db_models.SportsGamePlay]) -> list[ScoreChip]:
+    score_chips: list[ScoreChip] = []
+    boundary_play_indices: set[int] = set()
+
+    for index, play in enumerate(plays[:-1]):
+        quarter = play.quarter
+        if quarter not in _SCORE_CHIP_LABELS:
+            continue
+        next_quarter = plays[index + 1].quarter
+        if next_quarter is None or next_quarter == quarter:
+            continue
+        if play.home_score is None or play.away_score is None:
+            continue
+        score_chips.append(
+            ScoreChip(
+                playIndex=play.play_index,
+                label=_SCORE_CHIP_LABELS[quarter],
+                homeScore=play.home_score,
+                awayScore=play.away_score,
+            )
+        )
+        boundary_play_indices.add(play.play_index)
+
+    last_scored_play = next(
+        (
+            play
+            for play in reversed(plays)
+            if play.home_score is not None and play.away_score is not None
+        ),
+        None,
+    )
+    if last_scored_play and last_scored_play.play_index not in boundary_play_indices:
+        score_chips.append(
+            ScoreChip(
+                playIndex=last_scored_play.play_index,
+                label="Current score",
+                homeScore=last_scored_play.home_score,
+                awayScore=last_scored_play.away_score,
+            )
+        )
+
+    return score_chips
 
 
 _SCORE_PATTERN = re.compile(r"\b\d{1,3}\s*[-–:]\s*\d{1,3}\b")
@@ -799,7 +858,8 @@ async def get_game_compact(game_id: int, session: AsyncSession = Depends(get_db)
             )
         )
 
-    response = CompactMomentsResponse(moments=moments, momentTypes=moment_types)
+    score_chips = _build_score_chips(plays)
+    response = CompactMomentsResponse(moments=moments, momentTypes=moment_types, scoreChips=score_chips)
     _store_compact_cache(game_id, response)
     return response
 
