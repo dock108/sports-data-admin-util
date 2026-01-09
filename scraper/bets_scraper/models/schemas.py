@@ -138,6 +138,9 @@ class IngestionConfig(BaseModel):
     odds: bool = True  # Fetch odds from API
     social: bool = False  # Scrape X posts for games
     pbp: bool = False  # Scrape play-by-play
+    # Live mode toggle. When false, ingestion must NOT call live endpoints (e.g. cdn.nba.com).
+    # This keeps local testing focused on historical/upcoming games.
+    live: bool = False
     
     # Shared filters
     only_missing: bool = False  # Skip games that already have this data

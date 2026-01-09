@@ -15,6 +15,7 @@ from ..models import IngestionConfig
 from ..live import LiveFeedManager
 from ..odds.synchronizer import OddsSynchronizer
 from ..persistence import persist_game_payload
+from ..persistence.plays import upsert_plays
 from ..scrapers import get_all_scrapers
 from ..social import XPostCollector
 from ..utils.datetime_utils import utcnow
@@ -188,6 +189,117 @@ class ScrapeRunManager:
 
         return [r[0] for r in query.all()]
 
+    def _get_games_for_pbp_sportsref(
+        self,
+        session: Session,
+        *,
+        league_code: str,
+        start_date: date,
+        end_date: date,
+        only_missing: bool,
+        updated_before: datetime | None,
+    ) -> list[tuple[int, str, date]]:
+        league = session.query(db_models.SportsLeague).filter(
+            db_models.SportsLeague.code == league_code
+        ).first()
+        if not league:
+            return []
+
+        query = session.query(
+            db_models.SportsGame.id,
+            db_models.SportsGame.source_game_key,
+            db_models.SportsGame.game_date,
+        ).filter(
+            db_models.SportsGame.league_id == league.id,
+            db_models.SportsGame.game_date >= datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc),
+            db_models.SportsGame.game_date <= datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc),
+            db_models.SportsGame.source_game_key.isnot(None),
+        )
+
+        if only_missing:
+            has_pbp = exists().where(db_models.SportsGamePlay.game_id == db_models.SportsGame.id)
+            query = query.filter(not_(has_pbp))
+
+        if updated_before:
+            has_fresh = exists().where(
+                db_models.SportsGamePlay.game_id == db_models.SportsGame.id,
+                db_models.SportsGamePlay.updated_at >= updated_before,
+            )
+            query = query.filter(not_(has_fresh))
+
+        rows = query.all()
+        return [(gid, str(source_key), game_dt.date()) for gid, source_key, game_dt in rows if source_key]
+
+    def _ingest_pbp_via_sportsref(
+        self,
+        session: Session,
+        *,
+        run_id: int,
+        league_code: str,
+        start_date: date,
+        end_date: date,
+        only_missing: bool,
+        updated_before: datetime | None,
+    ) -> tuple[int, int]:
+        """Ingest PBP using Sports Reference scraper implementations (non-live mode)."""
+        scraper = self.scrapers.get(league_code)
+        if not scraper:
+            logger.info(
+                "pbp_sportsref_not_supported",
+                run_id=run_id,
+                league=league_code,
+                reason="no_sportsref_scraper",
+            )
+            return (0, 0)
+
+        games = self._get_games_for_pbp_sportsref(
+            session,
+            league_code=league_code,
+            start_date=start_date,
+            end_date=end_date,
+            only_missing=only_missing,
+            updated_before=updated_before,
+        )
+        logger.info(
+            "pbp_sportsref_games_selected",
+            run_id=run_id,
+            league=league_code,
+            games=len(games),
+            only_missing=only_missing,
+            updated_before=str(updated_before) if updated_before else None,
+        )
+
+        pbp_games = 0
+        pbp_events = 0
+        for game_id, source_game_key, game_date in games:
+            try:
+                payload = scraper.fetch_play_by_play(source_game_key, game_date)
+            except NotImplementedError:
+                logger.info(
+                    "pbp_sportsref_not_supported",
+                    run_id=run_id,
+                    league=league_code,
+                    reason="fetch_play_by_play_not_implemented",
+                )
+                return (0, 0)
+            except Exception as exc:
+                logger.warning(
+                    "pbp_sportsref_fetch_failed",
+                    run_id=run_id,
+                    league=league_code,
+                    game_id=game_id,
+                    source_game_key=source_game_key,
+                    error=str(exc),
+                )
+                continue
+
+            inserted = upsert_plays(session, game_id, payload.plays)
+            if inserted:
+                pbp_games += 1
+                pbp_events += inserted
+
+        return (pbp_games, pbp_events)
+
     def run(self, run_id: int, config: IngestionConfig) -> dict:
         summary: Dict[str, int | str] = {
             "games": 0,
@@ -341,30 +453,57 @@ class ScrapeRunManager:
                     start_date=str(start),
                     end_date=str(end),
                     only_missing=config.only_missing,
+                    live=config.live,
                 )
-                if config.league_code not in self._supported_live_pbp_leagues:
-                    # PBP not implemented for this league in the live feed pipeline.
-                    logger.info(
-                        "pbp_not_implemented",
-                        run_id=run_id,
-                        league=config.league_code,
-                        message="Play-by-play is not yet implemented for this league; skipping.",
-                    )
-                    complete_job_run(pbp_run_id, "success", "pbp_not_implemented")
+                if config.live:
+                    # Live-feed PBP (explicit opt-in only).
+                    if config.league_code not in self._supported_live_pbp_leagues:
+                        logger.info(
+                            "pbp_not_implemented",
+                            run_id=run_id,
+                            league=config.league_code,
+                            message="Live play-by-play is not implemented for this league; skipping.",
+                        )
+                        complete_job_run(pbp_run_id, "success", "pbp_not_implemented")
+                    else:
+                        try:
+                            with get_session() as session:
+                                live_summary = self.live_feed_manager.ingest_live_data(
+                                    session,
+                                    config=config,
+                                    updated_before=updated_before_dt,
+                                )
+                                session.commit()
+                            summary["pbp_games"] += live_summary.pbp_games
+                            complete_job_run(pbp_run_id, "success")
+                        except Exception as exc:
+                            logger.exception(
+                                "pbp_live_feed_failed",
+                                run_id=run_id,
+                                league=config.league_code,
+                                error=str(exc),
+                            )
+                            complete_job_run(pbp_run_id, "error", str(exc))
                 else:
+                    # DEPRECATED (for current testing): do not call live endpoints unless live=true.
+                    pbp_events = 0
                     try:
                         with get_session() as session:
-                            live_summary = self.live_feed_manager.ingest_live_data(
+                            pbp_games, pbp_events = self._ingest_pbp_via_sportsref(
                                 session,
-                                config=config,
+                                run_id=run_id,
+                                league_code=config.league_code,
+                                start_date=start,
+                                end_date=end,
+                                only_missing=config.only_missing,
                                 updated_before=updated_before_dt,
                             )
                             session.commit()
-                        summary["pbp_games"] += live_summary.pbp_games
+                        summary["pbp_games"] += pbp_games
                         complete_job_run(pbp_run_id, "success")
                     except Exception as exc:
                         logger.exception(
-                            "pbp_live_feed_failed",
+                            "pbp_sportsref_failed",
                             run_id=run_id,
                             league=config.league_code,
                             error=str(exc),

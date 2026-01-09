@@ -12,6 +12,7 @@ from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.orm import selectinload
 
 from .. import db_models
+from ..config import settings
 from ..db import AsyncSession, get_db
 from ..services.recap_generator import RecapResult, build_recap
 from ..services.reveal_levels import RevealLevel, parse_reveal_level
@@ -175,6 +176,7 @@ async def _record_snapshot_job_run(
 @router.get("/games", response_model=GameSnapshotResponse)
 async def list_games(
     range: str = Query("current"),
+    assume_now: datetime | None = Query(None),
     session: AsyncSession = Depends(get_db),
 ) -> GameSnapshotResponse:
     """
@@ -202,7 +204,18 @@ async def list_games(
     """
     _validate_range(range)
     started_at = datetime.now(timezone.utc)
-    now = datetime.now(timezone.utc)
+    if assume_now is not None and settings.environment != "development":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="assume_now is only available in development",
+        )
+    if assume_now is not None:
+        # If a naive datetime is provided, treat it as UTC for local testing.
+        if assume_now.tzinfo is None or assume_now.tzinfo.utcoffset(assume_now) is None:
+            assume_now = assume_now.replace(tzinfo=timezone.utc)
+        now = assume_now.astimezone(timezone.utc)
+    else:
+        now = datetime.now(timezone.utc)
     window_start: datetime
     window_end: datetime
 
