@@ -177,6 +177,11 @@ def _upsert_team(session: Session, league_id: int, identity: TeamIdentity) -> in
             team_name=team_name,
             derived_abbreviation=abbreviation,
         )
+
+    # If the feed didn't provide an abbreviation, never overwrite a pre-existing one.
+    abbreviation_update_value = (
+        abbreviation if identity.abbreviation is not None else db_models.SportsTeam.abbreviation
+    )
     
     stmt = (
         insert(db_models.SportsTeam)
@@ -193,7 +198,7 @@ def _upsert_team(session: Session, league_id: int, identity: TeamIdentity) -> in
             index_elements=["league_id", "name"],
             set_={
                 "short_name": short_name,
-                "abbreviation": abbreviation,
+                "abbreviation": abbreviation_update_value,
                 "external_ref": identity.external_ref,
                 "updated_at": utcnow(),
             },
