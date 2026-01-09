@@ -222,7 +222,8 @@ class SportsGameOdds(Base):
     game_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_games.id", ondelete="CASCADE"), nullable=False, index=True)
     book: Mapped[str] = mapped_column(String(50), nullable=False)
     market_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    side: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Side can be team name, "Over"/"Under", etc. Must support long team names.
+    side: Mapped[str | None] = mapped_column(String(100), nullable=True)
     line: Mapped[float | None] = mapped_column(Float, nullable=True)
     price: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_closing_line: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
