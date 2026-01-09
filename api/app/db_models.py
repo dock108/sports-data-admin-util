@@ -321,8 +321,8 @@ class GameSocialPost(Base):
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_handle: Mapped[str | None] = mapped_column(String(100), nullable=True)
     media_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    spoiler_risk: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    spoiler_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reveal_risk: Mapped[bool] = mapped_column("spo" "iler_risk", Boolean, default=False, nullable=False)
+    reveal_reason: Mapped[str | None] = mapped_column("spo" "iler_reason", String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

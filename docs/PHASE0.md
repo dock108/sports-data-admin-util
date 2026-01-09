@@ -57,7 +57,7 @@ Phase 0 establishes a **canonical data model** for game identity. Every real-wor
 | `game_id` | FK → sports_games | **Must reference internal game ID** |
 | `external_post_id` | varchar(100) | Platform's post ID |
 | `posted_at` | timestamp with tz | When posted |
-| `spoiler_risk` | boolean | Contains score spoilers |
+| `reveal_risk` | boolean | Contains score exposure |
 
 ## ID Rules
 
@@ -126,7 +126,7 @@ scheduled ──┬──> live ──> final
 
 1. Added `end_time` column to `sports_games`
 2. Added `idx_games_league_status` index
-3. Added `external_post_id` and `spoiler_risk` to `game_social_posts`
+3. Added `external_post_id` and `reveal_risk` to `game_social_posts`
 4. Backfilled `end_time` for completed games
 
 ### Deprecated Paths

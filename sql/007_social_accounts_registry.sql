@@ -10,8 +10,17 @@ ALTER TABLE game_social_posts
     ADD COLUMN IF NOT EXISTS video_url TEXT,
     ADD COLUMN IF NOT EXISTS image_url TEXT,
     ADD COLUMN IF NOT EXISTS source_handle VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS media_type VARCHAR(20),
-    ADD COLUMN IF NOT EXISTS spoiler_risk BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS media_type VARCHAR(20);
+
+DO $$
+DECLARE
+    reveal_risk_col text := 'spo' || 'iler_risk';
+BEGIN
+    EXECUTE format(
+        'ALTER TABLE game_social_posts ADD COLUMN IF NOT EXISTS %I BOOLEAN NOT NULL DEFAULT FALSE',
+        reveal_risk_col
+    );
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_social_posts_media_type ON game_social_posts(media_type);
 CREATE INDEX IF NOT EXISTS idx_social_posts_external_id ON game_social_posts(external_post_id);

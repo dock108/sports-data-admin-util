@@ -106,7 +106,7 @@ X_CT0=your_ct0_token_here
 
 ## Compact Moments
 
-The platform generates "compact moments" — key points in a game where the score margin changes significantly. These are used for spoiler-free game recaps.
+The platform generates "compact moments" — key points in a game where the score margin changes significantly. These are used for reveal-safe game recaps.
 
 Each moment includes:
 - PBP events leading to the moment
