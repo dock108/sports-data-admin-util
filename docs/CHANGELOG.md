@@ -19,6 +19,9 @@ All notable changes to Sports Data Admin.
 - Social post content fields: `tweet_text`, `video_url`, `image_url`, `source_handle`, `media_type`
 - Twitter embed widget for video posts in admin UI
 - Pagination for social posts (10 per page)
+- Live feed polling for NBA/NHL status updates
+- Live play-by-play ingestion with append-only event storage
+- NHL team X handle registry with validation helper
 
 ### Changed
 - Docker compose now connects to host database via `host.docker.internal`

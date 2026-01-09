@@ -12,8 +12,9 @@ from ..config import settings
 from ..db import db_models, get_session
 from ..logging import logger
 from ..models import IngestionConfig
+from ..live import LiveFeedManager
 from ..odds.synchronizer import OddsSynchronizer
-from ..persistence import persist_game_payload, upsert_player_boxscores, upsert_plays
+from ..persistence import persist_game_payload, upsert_player_boxscores
 from ..scrapers import get_all_scrapers
 from ..social import XPostCollector
 from ..utils.datetime_utils import utcnow
@@ -24,6 +25,7 @@ class ScrapeRunManager:
         self.scrapers = get_all_scrapers()
         self.odds_sync = OddsSynchronizer()
         self.social_collector = XPostCollector()
+        self.live_feed_manager = LiveFeedManager()
 
     def _update_run(self, run_id: int, **updates) -> None:
         try:
@@ -161,50 +163,6 @@ class ScrapeRunManager:
 
         return [r[0] for r in query.all()]
 
-    def _get_games_for_pbp(
-        self,
-        session: Session,
-        league_code: str,
-        start_date: date,
-        end_date: date,
-        only_missing: bool = False,
-        updated_before: datetime | None = None,
-    ) -> List[Tuple[int, str, date]]:
-        """Get games for play-by-play scraping with filters."""
-        league = session.query(db_models.SportsLeague).filter(
-            db_models.SportsLeague.code == league_code
-        ).first()
-        if not league:
-            return []
-
-        query = session.query(
-            db_models.SportsGame.id,
-            db_models.SportsGame.source_game_key,
-            db_models.SportsGame.game_date,
-        ).filter(
-            db_models.SportsGame.league_id == league.id,
-            db_models.SportsGame.game_date >= datetime.combine(start_date, datetime.min.time()),
-            db_models.SportsGame.game_date <= datetime.combine(end_date, datetime.max.time()),
-            db_models.SportsGame.source_game_key.isnot(None),
-        )
-
-        if only_missing:
-            has_pbp = exists().where(
-                db_models.SportsGamePlay.game_id == db_models.SportsGame.id
-            )
-            query = query.filter(not_(has_pbp))
-
-        if updated_before:
-            # Include games where ALL plays are older than cutoff
-            has_fresh = exists().where(
-                db_models.SportsGamePlay.game_id == db_models.SportsGame.id,
-                db_models.SportsGamePlay.updated_at >= updated_before,
-            )
-            query = query.filter(not_(has_fresh))
-
-        results = query.all()
-        return [(r.id, r.source_game_key, r.game_date.date() if r.game_date else None) for r in results]
-
     def run(self, run_id: int, config: IngestionConfig) -> dict:
         summary: Dict[str, int | str] = {
             "games": 0,
@@ -239,7 +197,7 @@ class ScrapeRunManager:
             end_date=str(end),
         )
 
-        if not scraper and (config.boxscores or config.pbp):
+        if not scraper and config.boxscores:
             raise RuntimeError(f"No scraper implemented for {config.league_code}")
 
         self._update_run(run_id, status="running", started_at=utcnow())
@@ -372,7 +330,7 @@ class ScrapeRunManager:
                 logger.info("social_complete", count=summary["social_posts"], run_id=run_id)
 
             # Play-by-play scraping
-            if config.pbp and scraper:
+            if config.pbp:
                 logger.info(
                     "pbp_scraping_start",
                     run_id=run_id,
@@ -381,27 +339,22 @@ class ScrapeRunManager:
                     end_date=str(end),
                     only_missing=config.only_missing,
                 )
-
-                with get_session() as session:
-                    games_for_pbp = self._get_games_for_pbp(
-                        session, config.league_code, start, end,
-                        only_missing=config.only_missing,
-                        updated_before=updated_before_dt,
+                try:
+                    with get_session() as session:
+                        live_summary = self.live_feed_manager.ingest_live_data(
+                            session,
+                            config=config,
+                            updated_before=updated_before_dt,
+                        )
+                        session.commit()
+                    summary["pbp_games"] += live_summary.pbp_games
+                except Exception as exc:
+                    logger.exception(
+                        "pbp_live_feed_failed",
+                        run_id=run_id,
+                        league=config.league_code,
+                        error=str(exc),
                     )
-                logger.info("found_games_for_pbp", count=len(games_for_pbp), run_id=run_id)
-
-                for game_id, source_key, game_date in games_for_pbp:
-                    if not source_key or not game_date:
-                        continue
-                    try:
-                        pbp_payload = scraper.fetch_play_by_play(source_key, game_date)
-                        if pbp_payload and pbp_payload.plays:
-                            with get_session() as session:
-                                upsert_plays(session, game_id, pbp_payload.plays)
-                                session.commit()
-                                summary["pbp_games"] += 1
-                    except Exception as e:
-                        logger.warning("pbp_scrape_failed", game_id=game_id, error=str(e))
 
                 logger.info("pbp_complete", count=summary["pbp_games"], run_id=run_id)
 

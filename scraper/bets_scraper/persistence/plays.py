@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 
 def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]) -> int:
     """
-    Upsert play-by-play events for a game.
+    Insert play-by-play events for a game.
 
-    Uses PostgreSQL ON CONFLICT to update existing plays if they exist.
+    Uses PostgreSQL ON CONFLICT DO NOTHING to append new plays without overwriting.
 
     Args:
         session: Database session
@@ -28,7 +28,7 @@ def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]
         plays: List of normalized play events
 
     Returns:
-        Number of plays upserted
+        Number of plays inserted
     """
     if not plays:
         return 0
@@ -73,28 +73,14 @@ def upsert_plays(session: Session, game_id: int, plays: Sequence[NormalizedPlay]
                 raw_data=play.raw_data,
                 updated_at=utcnow(),
             )
-            .on_conflict_do_update(
+            .on_conflict_do_nothing(
                 index_elements=["game_id", "play_index"],
-                set_={
-                    "quarter": play.quarter,
-                    "game_clock": play.game_clock,
-                    "play_type": play.play_type,
-                    "team_id": team_id,
-                    "player_id": play.player_id,
-                    "player_name": play.player_name,
-                    "description": play.description,
-                    "home_score": play.home_score,
-                    "away_score": play.away_score,
-                    "raw_data": play.raw_data,
-                    "updated_at": utcnow(),
-                },
             )
         )
-        session.execute(stmt)
-        upserted += 1
+        result = session.execute(stmt)
+        if result.rowcount:
+            upserted += result.rowcount
 
     logger.info("plays_upserted", game_id=game_id, count=upserted)
     return upserted
-
-
 
