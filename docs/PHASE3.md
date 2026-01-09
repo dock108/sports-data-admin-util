@@ -6,15 +6,15 @@ The social ingestion pipeline lives in the scraper service and runs as part of t
 
 Key components:
 - **Account Registry**: `team_social_accounts` stores `(platform, handle, team_id, league_id)` for official team accounts. This registry is queryable via `/api/social/accounts` and seeded from existing `sports_teams.x_handle` values for NBA/NHL teams.
-- **Social Collector**: `XPostCollector` orchestrates polling, caching, spoiler classification, and persistence. Collection strategies include the X API v2 or Playwright scraping.
+- **Social Collector**: `XPostCollector` orchestrates polling, caching, reveal classification, and persistence. Collection strategies include the X API v2 or Playwright scraping.
 - **Caching & Rate Limits**: `social_account_polls` stores per-account window fetch metadata to avoid re-fetching the same time window. In-memory platform limits prevent exceeding quotas and back off on HTTP 429 responses.
 
 ## Spoiler Philosophy
 
 Spoiler handling is conservative by default:
-- Every post is treated as spoiler-risk unless it explicitly matches safe patterns (lineups, injury updates, “we’re underway,” etc.).
-- Outcome language, score patterns, recap phrases, and celebratory emojis stay spoiler-risk.
-- Post-game posts remain attached but are always flagged as spoiler-risk.
+- Every post is treated as reveal-risk unless it explicitly matches safe patterns (lineups, injury updates, “we’re underway,” etc.).
+- Outcome language, score patterns, recap phrases, and celebratory emojis stay reveal-risk.
+- Post-game posts remain attached but are always flagged as reveal-risk.
 
 This ensures the social layer never leaks outcomes before the narrative system decides how to surface the content.
 

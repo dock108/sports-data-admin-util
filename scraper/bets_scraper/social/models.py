@@ -38,6 +38,6 @@ class PostCollectionResult(BaseModel):
     job: PostCollectionJob
     posts_found: int = Field(default=0)
     posts_saved: int = Field(default=0)
-    posts_flagged_spoiler: int = Field(default=0, description="Posts marked as spoiler risk")
+    posts_flagged_reveal: int = Field(default=0, description="Posts marked as reveal risk")
     errors: list[str] = Field(default_factory=list)
     completed_at: datetime | None = None

@@ -256,21 +256,21 @@ def _contains_type(play_types: set[str], targets: set[str]) -> bool:
 
 
 def _sanitize_text(text: str) -> str:
-    return _apply_spoiler_filters(text)
+    return _apply_reveal_filters(text)
 
 
 def _redact_summary(text: str) -> str:
-    return _apply_spoiler_filters(text)
+    return _apply_reveal_filters(text)
 
 
-def _apply_spoiler_filters(text: str) -> str:
+def _apply_reveal_filters(text: str) -> str:
     cleaned = redact_scores(text)
     cleaned, final_score_count = _FINAL_SCORE_PATTERN.subn("", cleaned)
     cleaned, banned_phrase_count = _BANNED_PHRASES_PATTERN.subn("", cleaned)
     cleaned = _WHITESPACE_PATTERN.sub(" ", cleaned).strip()
     if final_score_count or banned_phrase_count:
         logger.info(
-            "moment_summary_spoiler_redaction",
+            "moment_summary_reveal_redaction",
             extra={
                 "final_score_redactions": final_score_count,
                 "banned_phrase_redactions": banned_phrase_count,

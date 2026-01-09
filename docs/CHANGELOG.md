@@ -6,7 +6,7 @@ All notable changes to Sports Data Admin.
 
 ### Added
 - Reading position storage endpoints for tracking user progress through games
-- Score redaction filter for spoiler-free summaries and posts
+- Score redaction filter for reveal-safe summaries and posts
 - Score checkpoint integration to API
 - AI summary retrieval endpoint for compact moments
 - AI summary generator service for moments (OpenAI with fallback)

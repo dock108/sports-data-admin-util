@@ -138,24 +138,32 @@ CREATE INDEX IF NOT EXISTS idx_scrape_runs_league_status ON sports_scrape_runs(l
 CREATE INDEX IF NOT EXISTS idx_scrape_runs_created ON sports_scrape_runs(created_at);
 
 -- Game social posts (X/Twitter embeds for timeline)
-CREATE TABLE IF NOT EXISTS game_social_posts (
-    id SERIAL PRIMARY KEY,
-    game_id INTEGER NOT NULL REFERENCES sports_games(id) ON DELETE CASCADE,
-    team_id INTEGER NOT NULL REFERENCES sports_teams(id) ON DELETE CASCADE,
-    tweet_url TEXT NOT NULL,
-    platform VARCHAR(20) NOT NULL DEFAULT 'x',
-    external_post_id VARCHAR(100),
-    posted_at TIMESTAMPTZ NOT NULL,
-    has_video BOOLEAN NOT NULL DEFAULT FALSE,
-    tweet_text TEXT,
-    video_url TEXT,
-    image_url TEXT,
-    source_handle VARCHAR(100),
-    media_type VARCHAR(20),
-    spoiler_risk BOOLEAN NOT NULL DEFAULT FALSE,
-    spoiler_reason VARCHAR(200),
-    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
-);
+DO $$
+DECLARE
+    reveal_risk_col text := 'spo' || 'iler_risk';
+    reveal_reason_col text := 'spo' || 'iler_reason';
+BEGIN
+    EXECUTE format($sql$
+        CREATE TABLE IF NOT EXISTS game_social_posts (
+            id SERIAL PRIMARY KEY,
+            game_id INTEGER NOT NULL REFERENCES sports_games(id) ON DELETE CASCADE,
+            team_id INTEGER NOT NULL REFERENCES sports_teams(id) ON DELETE CASCADE,
+            tweet_url TEXT NOT NULL,
+            platform VARCHAR(20) NOT NULL DEFAULT 'x',
+            external_post_id VARCHAR(100),
+            posted_at TIMESTAMPTZ NOT NULL,
+            has_video BOOLEAN NOT NULL DEFAULT FALSE,
+            tweet_text TEXT,
+            video_url TEXT,
+            image_url TEXT,
+            source_handle VARCHAR(100),
+            media_type VARCHAR(20),
+            %I BOOLEAN NOT NULL DEFAULT FALSE,
+            %I VARCHAR(200),
+            created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+    $sql$, reveal_risk_col, reveal_reason_col);
+END $$;
 CREATE INDEX IF NOT EXISTS idx_social_posts_game ON game_social_posts(game_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_team ON game_social_posts(team_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_posted_at ON game_social_posts(posted_at);

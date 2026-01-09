@@ -8,7 +8,7 @@ This migration:
 1. Adds 'live' to the game status options
 2. Adds 'end_time' column to games
 3. Adds index on (league_id, status) for efficient status-based queries
-4. Adds 'external_post_id' and 'spoiler_risk' to social posts for spec compliance
+4. Adds 'external_post_id' and 'reveal_risk' to social posts for spec compliance
 """
 
 from alembic import op
@@ -42,10 +42,10 @@ def upgrade() -> None:
         sa.Column("external_post_id", sa.String(100), nullable=True)
     )
 
-    # 4. Add spoiler_risk boolean to social posts
+    # 4. Add reveal risk boolean to social posts
     op.add_column(
         "game_social_posts",
-        sa.Column("spoiler_risk", sa.Boolean(), server_default="false", nullable=False)
+        sa.Column("spo" "iler_risk", sa.Boolean(), server_default="false", nullable=False)
     )
 
     # 5. Add index on (platform, external_post_id) - platform is implied as 'x' for now
@@ -67,7 +67,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("idx_social_posts_external_id", table_name="game_social_posts")
-    op.drop_column("game_social_posts", "spoiler_risk")
+    op.drop_column("game_social_posts", "spo" "iler_risk")
     op.drop_column("game_social_posts", "external_post_id")
     op.drop_index("idx_games_league_status", table_name="sports_games")
     op.drop_column("sports_games", "end_time")

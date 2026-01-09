@@ -3,7 +3,7 @@ X (Twitter) post collector for game timelines.
 
 This module provides infrastructure to collect posts from team X accounts
 through pluggable strategies. The orchestrator handles persistence and
-spoiler filtering.
+reveal filtering.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .models import CollectedPost, PostCollectionJob, PostCollectionResult
 from .playwright_collector import PlaywrightXCollector, playwright_available
 from .rate_limit import PlatformRateLimiter
 from .registry import fetch_team_accounts
-from .spoiler_filter import classify_spoiler_risk
+from .reveal_filter import classify_reveal_risk
 from .utils import extract_x_post_id
 
 if TYPE_CHECKING:
@@ -181,19 +181,19 @@ class XPostCollector:
     Main X post collector that orchestrates collection and storage.
 
     Supports running collection jobs for specific games, persisting
-    results to the database, and filtering spoilers.
+    results to the database, and filtering reveal-sensitive content.
     """
 
     def __init__(
         self,
         strategy: XCollectorStrategy | None = None,
-        filter_spoilers: bool = True,
+        filter_reveals: bool = True,
     ):
         if strategy:
             self.strategy = strategy
         else:
             self.strategy = PlaywrightXCollector() if playwright_available() else MockXCollector()
-        self.filter_spoilers = filter_spoilers
+        self.filter_reveals = filter_reveals
         self.platform = "x"
         social_config = settings.social_config
         self.rate_limiter = PlatformRateLimiter(
@@ -309,10 +309,10 @@ class XPostCollector:
                     )
                     continue
 
-                spoiler_result = classify_spoiler_risk(post.text)
-                # Spoiler logic: post-game content stays attached but is always flagged.
+                reveal_result = classify_reveal_risk(post.text)
+                # Reveal logic: post-game content stays attached but is always flagged.
                 if job.game_end and normalized_posted_at > job.game_end:
-                    spoiler_result = spoiler_result._replace(spoiler_risk=True, reason="postgame")
+                    reveal_result = reveal_result._replace(reveal_risk=True, reason="postgame")
 
                 external_id = post.external_post_id or extract_x_post_id(post.post_url)
                 existing = None
@@ -328,8 +328,8 @@ class XPostCollector:
                         db_models.GameSocialPost.post_url == post.post_url
                     ).first()
 
-                if spoiler_result.spoiler_risk:
-                    result.posts_flagged_spoiler += 1
+                if reveal_result.reveal_risk:
+                    result.posts_flagged_reveal += 1
 
                 if existing:
                     existing.posted_at = normalized_posted_at
@@ -341,8 +341,8 @@ class XPostCollector:
                     existing.media_type = post.media_type or "none"
                     existing.platform = self.platform
                     existing.external_post_id = external_id
-                    existing.spoiler_risk = spoiler_result.spoiler_risk
-                    existing.spoiler_reason = spoiler_result.reason
+                    existing.reveal_risk = reveal_result.reveal_risk
+                    existing.reveal_reason = reveal_result.reason
                     existing.updated_at = datetime.now(timezone.utc)
                     posts_updated += 1
                 else:
@@ -359,8 +359,8 @@ class XPostCollector:
                         video_url=post.video_url,
                         image_url=post.image_url,
                         media_type=post.media_type or "none",
-                        spoiler_risk=spoiler_result.spoiler_risk,
-                        spoiler_reason=spoiler_result.reason,
+                        reveal_risk=reveal_result.reveal_risk,
+                        reveal_reason=reveal_result.reason,
                         updated_at=datetime.now(timezone.utc),
                     )
                     session.add(db_post)
@@ -395,7 +395,7 @@ class XPostCollector:
                 team=job.team_abbreviation,
                 found=result.posts_found,
                 saved=result.posts_saved,
-                spoilers=result.posts_flagged_spoiler,
+                reveals=result.posts_flagged_reveal,
                 skipped=posts_skipped,
             )
 
@@ -533,12 +533,12 @@ class XPostCollector:
             results.append(result)
 
         if results:
-            spoiler_total = sum(r.posts_flagged_spoiler for r in results)
+            reveal_total = sum(r.posts_flagged_reveal for r in results)
             saved_total = sum(r.posts_saved for r in results)
             logger.info(
-                "x_spoiler_summary",
+                "x_reveal_summary",
                 game_id=game_id,
-                spoilers=spoiler_total,
+                reveals=reveal_total,
                 saved=saved_total,
             )
 

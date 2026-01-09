@@ -1,4 +1,4 @@
-"""Beta Phase 3 - Social account registry and spoiler metadata.
+"""Beta Phase 3 - Social account registry and reveal metadata.
 
 Revision ID: 20260115_000001
 Revises: 20260108_000001

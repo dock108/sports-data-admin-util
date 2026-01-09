@@ -31,7 +31,7 @@ class PlaywrightXCollector(XCollectorStrategy):
     - post URL
     - timestamp
     - has_video flag
-    Caption text is read only to allow spoiler filtering but is not stored.
+    Caption text is read only to allow reveal filtering but is not stored.
 
     Authentication:
         Set X_AUTH_TOKEN and X_CT0 environment variables from your browser cookies.

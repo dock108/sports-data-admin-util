@@ -85,7 +85,7 @@ TEMPLATES: tuple[NuggetTemplate, ...] = (
 
 
 def generate_nugget(context: GameContext, tags: Iterable[str]) -> str:
-    """Generate a short, non-spoiler nugget from templates."""
+    """Generate a short, reveal-neutral nugget from templates."""
     normalized_tags = _normalize_tags(tags)
     normalized_tags |= _context_tags(context)
 
