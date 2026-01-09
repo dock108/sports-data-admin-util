@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-from sqlalchemy.dialects.postgresql import insert
+from typing import TYPE_CHECKING, Any
+
 from sqlalchemy import func, literal_column
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..db import db_models
 from ..models import NormalizedGame
 from ..utils.db_queries import get_league_id
 from ..utils.datetime_utils import utcnow
+from ..utils.date_utils import season_from_date
 from .teams import _upsert_team
+
+if TYPE_CHECKING:
+    from ..models import TeamIdentity
 
 
 def _normalize_status(status: str | None) -> str:
@@ -24,6 +30,142 @@ def _normalize_status(status: str | None) -> str:
     if status_normalized == db_models.GameStatus.scheduled.value:
         return db_models.GameStatus.scheduled.value
     return db_models.GameStatus.scheduled.value
+
+
+def resolve_status_transition(current_status: str | None, incoming_status: str | None) -> str:
+    """Resolve a safe status transition without regressing final games."""
+    current = _normalize_status(current_status)
+    incoming = _normalize_status(incoming_status)
+
+    if current == db_models.GameStatus.final.value:
+        return current
+    if incoming == db_models.GameStatus.final.value:
+        return incoming
+    if current == db_models.GameStatus.live.value and incoming == db_models.GameStatus.scheduled.value:
+        return current
+    return incoming
+
+
+def merge_external_ids(
+    existing: dict[str, Any],
+    updates: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Merge external IDs, preferring new non-null values."""
+    if not updates:
+        return existing
+
+    merged = dict(existing or {})
+    for key, value in updates.items():
+        if value is not None:
+            merged[key] = value
+    return merged
+
+
+def upsert_game_stub(
+    session: Session,
+    *,
+    league_code: str,
+    game_date: datetime,
+    home_team: "TeamIdentity",
+    away_team: "TeamIdentity",
+    status: str | None,
+    home_score: int | None = None,
+    away_score: int | None = None,
+    venue: str | None = None,
+    external_ids: dict[str, Any] | None = None,
+) -> tuple[int, bool]:
+    """Upsert a game without boxscores (used for live schedule feeds)."""
+    league_id = get_league_id(session, league_code)
+    home_team_id = _upsert_team(session, league_id, home_team)
+    away_team_id = _upsert_team(session, league_id, away_team)
+    normalized_status = _normalize_status(status)
+
+    existing = (
+        session.query(db_models.SportsGame)
+        .filter(db_models.SportsGame.league_id == league_id)
+        .filter(db_models.SportsGame.home_team_id == home_team_id)
+        .filter(db_models.SportsGame.away_team_id == away_team_id)
+        .filter(db_models.SportsGame.game_date == game_date)
+        .first()
+    )
+
+    if existing:
+        updated_status = resolve_status_transition(existing.status, normalized_status)
+        existing.status = updated_status
+        existing.home_score = home_score if home_score is not None else existing.home_score
+        existing.away_score = away_score if away_score is not None else existing.away_score
+        if venue:
+            existing.venue = venue
+        if external_ids:
+            existing.external_ids = merge_external_ids(existing.external_ids, external_ids)
+        if updated_status == db_models.GameStatus.final.value and existing.end_time is None:
+            existing.end_time = utcnow()
+        existing.updated_at = utcnow()
+        session.flush()
+        return existing.id, False
+
+    season = season_from_date(game_date.date(), league_code)
+    end_time_value = utcnow() if normalized_status == db_models.GameStatus.final.value else None
+    game = db_models.SportsGame(
+        league_id=league_id,
+        season=season,
+        season_type="regular",
+        game_date=game_date,
+        home_team_id=home_team_id,
+        away_team_id=away_team_id,
+        home_score=home_score,
+        away_score=away_score,
+        venue=venue,
+        status=normalized_status,
+        end_time=end_time_value,
+        source_game_key=None,
+        scrape_version=1,
+        last_scraped_at=None,
+        external_ids=external_ids or {},
+    )
+    session.add(game)
+    session.flush()
+    return game.id, True
+
+
+def update_game_from_live_feed(
+    session: Session,
+    *,
+    game: db_models.SportsGame,
+    status: str | None,
+    home_score: int | None,
+    away_score: int | None,
+    venue: str | None = None,
+    external_ids: dict[str, Any] | None = None,
+) -> bool:
+    """Apply live feed updates while preventing status regression."""
+    updated_status = resolve_status_transition(game.status, status)
+    merged_external_ids = merge_external_ids(game.external_ids, external_ids)
+    updated = False
+
+    if updated_status != game.status:
+        game.status = updated_status
+        updated = True
+    if home_score is not None and home_score != game.home_score:
+        game.home_score = home_score
+        updated = True
+    if away_score is not None and away_score != game.away_score:
+        game.away_score = away_score
+        updated = True
+    if venue and venue != game.venue:
+        game.venue = venue
+        updated = True
+    if merged_external_ids != game.external_ids:
+        game.external_ids = merged_external_ids
+        updated = True
+    if updated_status == db_models.GameStatus.final.value and game.end_time is None:
+        game.end_time = utcnow()
+        updated = True
+
+    if updated:
+        game.updated_at = utcnow()
+        session.flush()
+    return updated
 
 
 def upsert_game(session: Session, normalized: NormalizedGame) -> tuple[int, bool]:

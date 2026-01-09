@@ -102,9 +102,9 @@ class NormalizedPlay(BaseModel):
     """Single play-by-play event."""
 
     play_index: int
-    quarter: int | None = None
-    game_clock: str | None = None
-    play_type: str | None = None
+    quarter: int | None = None  # Period number; NHL uses periods instead of quarters.
+    game_clock: str | None = None  # Remaining time in period; absolute timestamps go in raw_data["event_time"].
+    play_type: str | None = None  # Supports league-specific enums (e.g., NHL eventTypeId).
     team_abbreviation: str | None = None
     player_id: str | None = None
     player_name: str | None = None
@@ -145,5 +145,4 @@ class IngestionConfig(BaseModel):
     
     # Optional book filter for odds
     include_books: list[str] | None = None
-
 

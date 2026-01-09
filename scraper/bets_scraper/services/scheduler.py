@@ -131,7 +131,7 @@ def schedule_ingestion_runs(
                 boxscores=True,
                 odds=True,
                 social=False,
-                pbp=False,
+                pbp=True,
                 only_missing=False,
             )
 
