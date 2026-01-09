@@ -16,13 +16,17 @@ DATABASE_URL = "postgresql+psycopg://user:pass@host:5432/sports"
 
 | Table | Description |
 |-------|-------------|
-| `sports_leagues` | League definitions (NBA, NFL, NCAAB, etc.) |
-| `sports_teams` | Teams with names, abbreviations, X handles |
-| `sports_games` | Games with scores, dates, status |
-| `sports_team_boxscores` | Team stats as JSONB |
-| `sports_player_boxscores` | Player stats as JSONB |
-| `sports_game_odds` | Spreads, totals, moneylines |
-| `game_social_posts` | X/Twitter posts per game |
+| sports_leagues | League definitions (NBA, NFL, NCAAB, etc.) |
+| sports_teams | Teams with names, abbreviations, X handles |
+| sports_games | Games with scores, dates, status |
+| sports_team_boxscores | Team stats as JSONB |
+| sports_player_boxscores | Player stats as JSONB |
+| sports_game_odds | Spreads, totals, moneylines |
+| sports_game_plays | Play-by-play events |
+| game_social_posts | X/Twitter posts per game |
+| game_reading_positions | User reading position tracking |
+| compact_mode_thresholds | Per-sport moment thresholds |
+| sports_scrape_runs | Scrape job audit log |
 
 ## Python Examples
 
@@ -64,9 +68,6 @@ df = pd.read_sql("""
     LEFT JOIN sports_team_boxscores tb ON tb.game_id = g.id AND tb.is_home = true
     WHERE l.code = 'NBA' AND g.status = 'completed'
 """, engine)
-
-# Expand JSONB stats
-stats_df = df['home_pts'].apply(pd.Series)
 ```
 
 ### ORM Models
@@ -159,9 +160,6 @@ const games = await fetch(`${API_BASE}/api/admin/sports/games?league=NBA&season=
 
 // Game detail
 const detail = await fetch(`${API_BASE}/api/admin/sports/games/1234`);
-
-// Social posts
-const posts = await fetch(`${API_BASE}/api/social/posts/game/1234`);
 ```
 
 ## Dependencies

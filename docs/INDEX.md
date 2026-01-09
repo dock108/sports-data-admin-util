@@ -1,32 +1,33 @@
 # Documentation Index
 
-Sports Data Admin is the central data infrastructure for Scroll Down Sports. This documentation covers how to operate, extend, and integrate with the platform.
+## Getting Started
 
----
+| Guide | Description |
+|-------|-------------|
+| [Platform Overview](PLATFORM_OVERVIEW.md) | What this platform does, key features, API endpoints |
+| [Local Development](LOCAL_DEVELOPMENT.md) | How to run the stack locally |
+| [Infrastructure](INFRA.md) | Docker configuration, deployment, profiles |
 
-## Start Here
+## Data & Integration
 
-- [Platform Overview](PLATFORM_OVERVIEW.md) — What this system does and how data flows
-- [Project Intent](PROJECT_INTENT.md) — Why this exists and guiding principles
-
-## Development
-
-- [Local Development](LOCAL_DEVELOPMENT.md) — Running services locally
-- [Infrastructure](INFRA.md) — Docker setup and deployment
-- [Database Integration](DATABASE_INTEGRATION.md) — Connecting and querying the database
+| Guide | Description |
+|-------|-------------|
+| [Database Integration](DATABASE_INTEGRATION.md) | How to query the sports database |
+| [Scoring Logic & Scrapers](SCORE_LOGIC_AND_SCRAPERS.md) | How data ingestion works |
+| [X Integration](X_INTEGRATION.md) | Social media scraping from X/Twitter |
+| [API Reference](API.md) | FastAPI endpoints and usage |
 
 ## Operations
 
-- [Operator Runbook](OPERATOR_RUNBOOK.md) — Production setup, backups, and troubleshooting
-- [API Reference](API.md) — Endpoints and environment variables
+| Guide | Description |
+|-------|-------------|
+| [Operator Runbook](OPERATOR_RUNBOOK.md) | Production operations, backups, monitoring |
+| [Feature Flags](feature-flags.md) | Environment toggles and behavior switches |
 
-## Data & Ingestion
+## Development
 
-- [Scoring Logic & Scrapers](SCORE_LOGIC_AND_SCRAPERS.md) — How scores are ingested and processed
-- [X Integration](X_INTEGRATION.md) — Social media scraping from X/Twitter
-
-## Reference
-
-- [Feature Flags](feature-flags.md) — UI toggles and experimental features
-- [Codex Task Rules](CODEX_TASK_RULES.md) — Guidelines for AI-assisted tasks
-- [Changelog](CHANGELOG.md) — Recent changes and updates
+| Guide | Description |
+|-------|-------------|
+| [Project Intent](PROJECT_INTENT.md) | Why this platform exists, core principles |
+| [Codex Task Rules](CODEX_TASK_RULES.md) | How to define tasks for AI agents |
+| [Changelog](CHANGELOG.md) | Recent changes and releases |

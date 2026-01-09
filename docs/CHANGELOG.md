@@ -1,49 +1,57 @@
 # Changelog
 
-All notable changes to Sports Data Admin are documented here.
-
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
----
+All notable changes to Sports Data Admin.
 
 ## [Unreleased]
 
 ### Added
-- **Game reading positions table** — Tracks user scroll position for game detail views
-- **Compact mode thresholds** — Configurable thresholds per sport for compact play-by-play
-- **Social post rich media fields** — `tweet_text`, `image_url`, `video_url`, `source_handle`, `media_type`
-- **`updated_at` timestamps** — Added to all major tables for staleness tracking
-- **Social post upsert** — Rescraping now updates existing posts instead of skipping
-- **Paginated social posts** — Admin UI shows 10 posts per page with navigation
-- **Hybrid social rendering** — Twitter embed for videos, custom cards for images/text
+- Reading position storage endpoints for tracking user progress through games
+- Score redaction filter for spoiler-free summaries and posts
+- Score checkpoint integration to API
+- AI summary retrieval endpoint for compact moments
+- AI summary generator service for moments (OpenAI with fallback)
+- Compact moment posts endpoint
+- Compact moment PBP slice endpoint
+- Compact moments endpoint (`GET /games/{id}/compact`)
+- `game_reading_positions` table for storing user read positions
+- `compact_mode_thresholds` table with per-sport defaults
+- `updated_at` columns on `game_social_posts` and `sports_game_plays`
+- Social post content fields: `tweet_text`, `video_url`, `image_url`, `source_handle`, `media_type`
+- Twitter embed widget for video posts in admin UI
+- Pagination for social posts (10 per page)
 
 ### Changed
-- **Simplified scrape run config** — Replaced `include_X`/`backfill_X` with data type toggles and shared filters
-- **Scraper filters** — Added `only_missing` and `updated_before` options for targeted rescrapes
-- **Documentation rewrite** — Clarified platform purpose and updated outdated schemas
+- Docker compose now connects to host database via `host.docker.internal`
+- Auto-migrations disabled by default (`RUN_MIGRATIONS=false`)
+- Social scraper performs upsert (updates existing posts)
+- Ingestion config simplified to data type toggles + shared filters
 
 ### Fixed
-- Video URL extraction for social posts
-- React StrictMode duplicate embed prevention
-- Collapsible sections now default to collapsed
+- Fixed compact mode threshold model restoration
+- Fixed timezone handling in social scraper
+- Fixed duplicate Twitter embeds in React StrictMode
 
----
-
-## [2024-12-26] — Initial Documented Release
+## [2024-12-30]
 
 ### Added
-- Compact play-by-play slice endpoint for admin games
-- Game preview score endpoint
-- Summary cache hit-rate tracking
-- Spoiler redaction logging for compact summaries
+- Play-by-play (PBP) functionality with quarter pagination
+- Social media scraping from X/Twitter team accounts
+- X authentication via cookies for historical search
+- Spoiler filtering for social posts
+- Admin UI game detail with collapsible sections
+- Feature flags for experimental features
 
 ### Changed
-- Split sports admin router modules to reduce file sizes
-- Consolidated sports admin API client types into modular helpers
-- Moved root docs into `/docs` directory
-- Added local development guide
+- Moved documentation to `/docs` folder
+- Added structured logging throughout
 
-### Infrastructure
-- Docker Compose profiles for dev/prod
-- Alembic migrations for schema management
-- Nginx admin-only configuration template
+## [2024-12-01]
+
+### Added
+- Initial release
+- FastAPI admin API
+- Celery scraper workers
+- Next.js admin UI
+- Sports Reference boxscore scraping
+- The Odds API integration
+- PostgreSQL with JSONB stats storage

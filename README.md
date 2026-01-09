@@ -1,80 +1,81 @@
 # Sports Data Admin
 
-The central sports data administration platform for **Scroll Down Sports**. This system ingests, curates, and publishes sports data consumed by downstream applications.
-
----
+> The central data platform for Scroll Down Sports — ingest, curate, and publish sports data.
 
 ## What Is This?
 
-Sports Data Admin is the **source of truth** for all sports data in the Scroll Down Sports ecosystem. It handles:
+Sports Data Admin is the **source of truth** for all sports data consumed by downstream applications. It is **not user-facing** — it's an internal admin and data operations platform.
 
-- **Data ingestion** from external sources (Sports Reference, The Odds API, X/Twitter)
-- **Normalization** into predictable, consistent schemas
-- **Curation** via the admin UI for review and quality control
-- **Publishing** through a REST API consumed by downstream apps
+### Why It Exists
 
-This is **not a user-facing product**. It is internal infrastructure for data operations.
+Consumer apps like [Scroll Down Sports](https://scrolldownsports.com) need reliable, normalized sports data. This platform:
 
----
+- **Ingests** raw data from multiple sources (Sports Reference, The Odds API, X/Twitter)
+- **Normalizes** formats into predictable schemas
+- **Curates** data through admin review and quality filters
+- **Publishes** clean data via API for downstream consumption
 
-## Who Uses This?
+### Who Uses It
 
-| Role | Purpose |
-|------|---------|
-| Data Ops | Schedule scrapes, review ingested data, fix issues |
-| Developers | Integrate downstream apps via the API |
-| AI Agents | Automated data tasks (Codex, Cursor, etc.) |
-
-End users never interact with this platform directly.
-
----
+- **Data Operations** — Schedule scrape jobs, monitor ingestion, review data quality
+- **Developers** — Query the API, integrate with consumer apps
+- **No end users** — This is internal infrastructure only
 
 ## Core Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        INGEST → REVIEW → PUBLISH                    │
-└─────────────────────────────────────────────────────────────────────┘
-
-  External Sources          Admin Platform           Downstream Apps
-  ─────────────────         ──────────────           ───────────────
-  Sports Reference    ──►   Scraper Workers    ──►   REST API
-  The Odds API        ──►   PostgreSQL         ──►   scroll-down-app (iOS)
-  X/Twitter           ──►   Admin UI           ──►   scroll-down-sports-ui (Web)
+│                         DATA SOURCES                                 │
+│  Sports Reference (boxscores) │ The Odds API │ X/Twitter (social)   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         INGESTION LAYER                              │
+│  Celery workers scrape, normalize, validate, and persist data       │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         POSTGRES DATABASE                            │
+│  games │ boxscores │ odds │ social │ plays │ thresholds             │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ADMIN API (FastAPI)                          │
+│  REST endpoints for data access, scrape scheduling, game detail     │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+              ┌──────────────────┴──────────────────┐
+              ▼                                      ▼
+┌─────────────────────────┐            ┌─────────────────────────────┐
+│   ADMIN UI (Next.js)    │            │   DOWNSTREAM CONSUMERS      │
+│   Internal ops only     │            │   scroll-down-app (iOS)     │
+│                         │            │   scroll-down-sports-ui     │
+└─────────────────────────┘            └─────────────────────────────┘
 ```
-
-1. **Ingest**: Scrapers pull data from external sources on a schedule or on-demand
-2. **Review**: Operators use the admin UI to verify data quality, fix gaps, rescrape as needed
-3. **Publish**: Clean data is exposed via the REST API for downstream consumption
-
----
 
 ## Downstream Consumers
 
-This platform serves:
+This platform serves data to:
 
-| App | Description |
-|-----|-------------|
-| `scroll-down-app` | iOS mobile app |
-| `scroll-down-sports-ui` | Web frontend |
+| App | Type | Relationship |
+|-----|------|--------------|
+| `scroll-down-app` | iOS app | Consumes game data, social posts, compact moments |
+| `scroll-down-sports-ui` | Web app | Consumes game data, renders timelines |
 
-Both consume the same REST API. Schema changes here affect both consumers—**never break schemas silently**.
+**Contract:** The API implements `scroll-down-api-spec`. Schema changes require updating the spec first.
 
----
+## Tech Stack
 
-## Repository Structure
-
-```
-sports-data-admin/
-├── api/              # FastAPI backend (REST API + Alembic migrations)
-├── scraper/          # Celery workers (boxscores, odds, social, play-by-play)
-├── web/              # Next.js admin UI
-├── sql/              # Legacy SQL schemas (now managed by Alembic)
-├── infra/            # Docker Compose, Dockerfiles, Nginx config
-└── docs/             # Detailed documentation
-```
-
----
+| Component | Technology |
+|-----------|------------|
+| API | Python, FastAPI, SQLAlchemy |
+| Scraper | Python, Celery, Playwright |
+| Database | PostgreSQL |
+| Queue | Redis |
+| Admin UI | Next.js, React, TypeScript |
 
 ## Quick Start
 
@@ -84,7 +85,7 @@ sports-data-admin/
 cd infra
 cp .env.example .env   # Edit credentials
 
-# Start everything
+# Start full stack
 docker compose --profile dev up -d --build
 ```
 
@@ -95,61 +96,52 @@ docker compose --profile dev up -d --build
 
 ### Local Development
 
-See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for running services individually.
+See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
 
----
+## Project Structure
 
-## Data Types
-
-| Type | Source | Description |
-|------|--------|-------------|
-| Games | Sports Reference | Schedules, scores, status |
-| Boxscores | Sports Reference | Team and player statistics |
-| Odds | The Odds API | Spreads, totals, moneylines |
-| Social | X/Twitter | Team posts (24-hour game window) |
-| Play-by-play | Sports Reference | Game event sequences |
-
----
-
-## Key Principles
-
-1. **Stability over speed** — Downstream apps depend on this. Don't ship broken data.
-2. **Predictable schemas** — No silent changes. Document everything.
-3. **Zero silent failures** — Log all errors with context. Never swallow exceptions.
-4. **Traceable changes** — Every transformation must be explainable.
-
----
+```
+sports-data-admin/
+├── api/                 # FastAPI backend
+│   ├── app/             # Application code
+│   │   ├── routers/     # API endpoints
+│   │   ├── services/    # Business logic
+│   │   └── db_models.py # SQLAlchemy models
+│   └── alembic/         # Database migrations
+├── scraper/             # Celery workers
+│   └── bets_scraper/    # Ingestion logic
+├── web/                 # Admin UI (Next.js)
+│   └── src/             # React components
+├── sql/                 # Schema reference
+├── infra/               # Docker configs
+└── docs/                # Documentation
+```
 
 ## Documentation
 
-Start with the [Documentation Index](docs/INDEX.md) for detailed guides:
+| Guide | Description |
+|-------|-------------|
+| [Platform Overview](docs/PLATFORM_OVERVIEW.md) | Features and endpoints |
+| [Local Development](docs/LOCAL_DEVELOPMENT.md) | Setup instructions |
+| [Infrastructure](docs/INFRA.md) | Docker and deployment |
+| [Database Integration](docs/DATABASE_INTEGRATION.md) | Querying data |
+| [Operator Runbook](docs/OPERATOR_RUNBOOK.md) | Production operations |
+| [Scoring & Scrapers](docs/SCORE_LOGIC_AND_SCRAPERS.md) | Ingestion details |
+| [X Integration](docs/X_INTEGRATION.md) | Social media scraping |
 
-- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
-- [Local Development](docs/LOCAL_DEVELOPMENT.md)
-- [Infrastructure](docs/INFRA.md)
-- [Database Integration](docs/DATABASE_INTEGRATION.md)
-- [Operator Runbook](docs/OPERATOR_RUNBOOK.md)
-- [Scoring Logic & Scrapers](docs/SCORE_LOGIC_AND_SCRAPERS.md)
-- [X Integration](docs/X_INTEGRATION.md)
+Full index: [docs/INDEX.md](docs/INDEX.md)
 
----
+## Key Principles
 
-## API Contract
-
-This API implements the `scroll-down-api-spec`. Schema changes require:
-
-1. Update the spec first
-2. Update this implementation
-3. Document breaking changes in [CHANGELOG.md](docs/CHANGELOG.md)
-
----
+1. **Data correctness first** — Downstream apps depend on this data being accurate
+2. **Predictable schemas** — No silent changes that break consumers
+3. **Traceable processing** — Every transformation is logged and explainable
+4. **Zero silent failures** — Errors surface, never get swallowed
 
 ## Contributing
 
-See [AGENTS.md](AGENTS.md) for AI agent guidance and [docs/CODEX_TASK_RULES.md](docs/CODEX_TASK_RULES.md) for task formatting.
+See [AGENTS.md](AGENTS.md) for AI agent context and [docs/CODEX_TASK_RULES.md](docs/CODEX_TASK_RULES.md) for task formatting.
 
-**Before making changes:**
-- Read relevant files before proposing edits
-- Don't add dependencies casually
-- Don't modify schemas without migrations
-- Don't break consumers silently
+## License
+
+Private repository — internal use only.

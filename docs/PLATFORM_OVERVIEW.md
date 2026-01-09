@@ -1,45 +1,69 @@
 # Platform Overview
 
-Sports Data Admin is the **internal data infrastructure** for Scroll Down Sports. It is not user-facing—it serves downstream apps (iOS, Web) via a REST API.
+Sports Data Admin is the central data platform for Scroll Down Sports. It ingests, normalizes, and serves sports data to downstream consumer apps.
 
----
+## Data Collection
 
-## Features
+| Data Type | Source | Description |
+|-----------|--------|-------------|
+| **Boxscores** | Sports Reference | Team and player stats |
+| **Odds** | The Odds API | Spreads, totals, moneylines |
+| **Social** | X/Twitter | Team posts within game day window |
+| **Play-by-Play** | Sports Reference | Quarter-by-quarter game events |
 
-### Data Collection
-- **Boxscores**: Team and player stats from Sports Reference
-- **Odds**: Spreads, totals, moneylines from The Odds API
-- **Social**: Team X/Twitter posts (24-hour game day window)
+## Admin UI Features
 
-### Admin UI
-- **Data Browser**: Filter and view games, teams, scrape runs
-- **Ingestion**: Schedule scrape jobs with date ranges
-- **Game Detail**: View boxscores, player stats, odds, social posts
+| Feature | Description |
+|---------|-------------|
+| **Data Browser** | Filter and view games, teams, scrape runs |
+| **Ingestion** | Schedule scrape jobs with date ranges and data type toggles |
+| **Game Detail** | View boxscores, player stats, odds, social posts, PBP |
+| **Compact Moments** | Review AI-generated game moment summaries |
 
 ## API Endpoints
+
+### Admin Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/admin/sports/games` | List games with filters |
-| GET | `/api/admin/sports/games/{id}` | Game detail with stats |
+| GET | `/api/admin/sports/games/{id}` | Game detail with all data |
+| GET | `/api/admin/sports/games/{id}/compact` | Compact moments for game |
+| GET | `/api/admin/sports/games/{id}/compact/{moment}/pbp` | PBP slice for moment |
+| GET | `/api/admin/sports/games/{id}/compact/{moment}/posts` | Posts for moment |
+| GET | `/api/admin/sports/games/{id}/compact/{moment}/summary` | AI summary for moment |
 | GET | `/api/admin/sports/teams` | List teams |
 | POST | `/api/admin/sports/scraper/runs` | Create scrape job |
 | GET | `/api/admin/sports/scraper/runs` | List scrape runs |
-| GET | `/api/social/posts/game/{id}` | Social posts for game |
-| GET | `/healthz` | Health check |
 
-### Query Parameters
+### Reading Position Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/reading-positions/{user_id}/{game_id}` | Get saved position |
+| PUT | `/api/reading-positions/{user_id}/{game_id}` | Save position |
+| DELETE | `/api/reading-positions/{user_id}/{game_id}` | Delete position |
+| GET | `/api/reading-positions/{user_id}` | List all positions for user |
+
+### Utility Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/healthz` | Health check |
+| GET | `/docs` | OpenAPI documentation |
+
+### Query Parameters (Games List)
 
 ```
-GET /api/admin/sports/games?league=NBA&league=NCAAB&season=2024&missingOdds=true&limit=50
+GET /api/admin/sports/games?league=NBA&season=2024&missingOdds=true&limit=50
 ```
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `league` | string[] | Filter by league code |
+| `league` | string[] | Filter by league code (NBA, NFL, etc.) |
 | `season` | int | Season year |
 | `team` | string | Search team name |
-| `startDate` / `endDate` | date | Date range |
+| `startDate` / `endDate` | date | Date range filter |
 | `missingBoxscore` | bool | Games without boxscores |
 | `missingPlayerStats` | bool | Games without player stats |
 | `missingOdds` | bool | Games without odds |
@@ -49,18 +73,22 @@ GET /api/admin/sports/games?league=NBA&league=NCAAB&season=2024&missingOdds=true
 
 | Table | Description |
 |-------|-------------|
-| `sports_leagues` | League definitions (NBA, NFL, etc.) |
-| `sports_teams` | Teams with X handles |
-| `sports_games` | Games with scores and metadata |
+| `sports_leagues` | League definitions (NBA, NFL, NCAAB, etc.) |
+| `sports_teams` | Teams with names, abbreviations, X handles |
+| `sports_games` | Games with scores, dates, status |
 | `sports_team_boxscores` | Team stats (JSONB) |
 | `sports_player_boxscores` | Player stats (JSONB) |
 | `sports_game_odds` | Odds from various books |
+| `sports_game_plays` | Play-by-play events |
 | `game_social_posts` | X/Twitter posts per game |
+| `game_reading_positions` | User reading positions |
+| `compact_mode_thresholds` | Per-sport threshold configs |
 | `sports_scrape_runs` | Scrape job audit log |
 
 ## Social Scraping
 
 Posts are collected from official team X accounts within a 24-hour window:
+
 - **Start**: 5:00 AM ET on game day
 - **End**: 4:59 AM ET the next day
 
@@ -75,3 +103,14 @@ To scrape historical posts, add cookies from a logged-in X session:
 X_AUTH_TOKEN=your_auth_token_here
 X_CT0=your_ct0_token_here
 ```
+
+## Compact Moments
+
+The platform generates "compact moments" — key points in a game where the score margin changes significantly. These are used for spoiler-free game recaps.
+
+Each moment includes:
+- PBP events leading to the moment
+- Relevant social posts
+- AI-generated summary (via OpenAI or fallback)
+
+Threshold configurations per sport are stored in `compact_mode_thresholds`.

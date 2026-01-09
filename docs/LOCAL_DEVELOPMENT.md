@@ -2,18 +2,16 @@
 
 ## Docker (Recommended)
 
+The easiest way to run the full stack locally.
+
+### Quick Start
+
 ```bash
 cd infra
 cp .env.example .env   # Edit credentials as needed
 
-# Start everything
-docker compose up -d --build
-
-# First run: apply schema
-docker exec -i sports-postgres psql -U dock108 -d dock108 < ../sql/000_sports_schema.sql
-docker exec -i sports-postgres psql -U dock108 -d dock108 < ../sql/001_game_social_posts.sql
-docker exec -i sports-postgres psql -U dock108 -d dock108 < ../sql/002_team_x_handles.sql
-docker exec -i sports-postgres psql -U dock108 -d dock108 < ../sql/003_seed_nba_x_handles.sql
+# Start everything with the dev profile
+docker compose --profile dev up -d --build
 ```
 
 **URLs:**
@@ -21,37 +19,135 @@ docker exec -i sports-postgres psql -U dock108 -d dock108 < ../sql/003_seed_nba_
 - API Docs: http://localhost:8000/docs
 - Health: http://localhost:8000/healthz
 
-## Local Services
+### Using an Existing Database
+
+If you have an existing Postgres database on your host machine (not Docker), the stack is configured to connect to it via `host.docker.internal`.
+
+The default `docker-compose.yml` connects to:
+- Host: `host.docker.internal:5432`
+- Database: `${POSTGRES_DB}` from `.env`
+
+### Migrations
+
+Migrations run automatically on container startup when `RUN_MIGRATIONS=true`.
+
+To run migrations manually:
 
 ```bash
-# 1. Database schema
+# Check current version
+docker exec sports-api alembic current
+
+# Run pending migrations
+docker exec sports-api alembic upgrade head
+
+# Create a new migration
+docker exec sports-api alembic revision --autogenerate -m "describe change"
+```
+
+### Container Commands
+
+```bash
+# View logs
+docker compose --profile dev logs -f api
+docker compose --profile dev logs -f scraper
+
+# Restart a service
+docker compose --profile dev restart api
+
+# Rebuild and restart
+docker compose --profile dev up -d --build api
+
+# Stop everything
+docker compose --profile dev down
+```
+
+## Local Services (Without Docker)
+
+For development without Docker, run each service manually.
+
+### 1. Database Setup
+
+```bash
+# Apply schema (if starting fresh)
 psql "$DATABASE_URL" -f sql/000_sports_schema.sql
 
-# 2. API
+# Or run Alembic migrations
+cd api
+alembic upgrade head
+```
+
+### 2. API
+
+```bash
 cd api
 pip install -r requirements.txt
+
 export DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/sports"
 export REDIS_URL="redis://localhost:6379/2"
-uvicorn main:app --reload --port 8000
 
-# 3. Scraper (new terminal)
+uvicorn main:app --reload --port 8000
+```
+
+### 3. Scraper (Celery Worker)
+
+```bash
 cd scraper
 uv pip install --system -e .
-celery -A bets_scraper.celery_app.app worker --loglevel=info --queues=bets-scraper
 
-# 4. Web UI (new terminal)
+export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/sports"
+export REDIS_URL="redis://localhost:6379/2"
+
+celery -A bets_scraper.celery_app.app worker --loglevel=info --queues=bets-scraper
+```
+
+### 4. Web UI
+
+```bash
 cd web
 pnpm install
-NEXT_PUBLIC_SPORTS_API_URL=http://localhost:8000 pnpm dev
+
+export NEXT_PUBLIC_SPORTS_API_URL=http://localhost:8000
+pnpm dev
 ```
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection (async: `postgresql+asyncpg://`) |
-| `REDIS_URL` | Yes | Redis for Celery queue |
-| `ODDS_API_KEY` | No | The Odds API key for live odds |
-| `X_AUTH_TOKEN` | No | X auth cookie for social scraping |
-| `X_CT0` | No | X csrf cookie for social scraping |
-| `NEXT_PUBLIC_SPORTS_API_URL` | Yes (web) | API base URL for frontend |
+| DATABASE_URL | Yes | PostgreSQL connection string |
+| REDIS_URL | Yes | Redis for Celery queue |
+| POSTGRES_DB | Yes | Database name |
+| POSTGRES_USER | Yes | Database user |
+| POSTGRES_PASSWORD | Yes | Database password |
+| ODDS_API_KEY | No | The Odds API key for live odds |
+| X_AUTH_TOKEN | No | X auth cookie for social scraping |
+| X_CT0 | No | X csrf cookie for social scraping |
+| NEXT_PUBLIC_SPORTS_API_URL | Yes (web) | API base URL for frontend |
+| RUN_MIGRATIONS | No | Run Alembic on startup (default: true) |
+
+## Troubleshooting
+
+### API won't start
+
+Check the logs:
+```bash
+docker logs sports-api
+```
+
+Common issues:
+- Database not ready: wait for postgres healthcheck
+- Migration error: check Alembic version mismatch
+- Import error: rebuild the container
+
+### Scraper returns empty results
+
+For social scraping:
+1. Check X cookies are valid (they expire)
+2. Verify X_AUTH_TOKEN and X_CT0 in .env
+3. Rebuild scraper: docker compose --profile dev up -d --build scraper
+
+### Database connection refused
+
+- Ensure postgres is running: docker ps | grep postgres
+- Check the host: Docker uses host.docker.internal for host machine
+- Verify credentials in .env
