@@ -67,6 +67,33 @@ class SocialPostBulkCreateRequest(BaseModel):
     posts: list[SocialPostCreateRequest]
 
 
+class SocialAccountResponse(BaseModel):
+    """Social account registry entry."""
+
+    id: int
+    team_id: int = Field(alias="teamId")
+    league_code: str = Field(alias="leagueCode")
+    platform: str
+    handle: str
+    is_active: bool = Field(alias="isActive")
+
+
+class SocialAccountListResponse(BaseModel):
+    """List of social account registry entries."""
+
+    accounts: list[SocialAccountResponse]
+    total: int
+
+
+class SocialAccountUpsertRequest(BaseModel):
+    """Request to upsert a social account registry entry."""
+
+    team_id: int = Field(..., alias="teamId")
+    platform: str = Field(default="x")
+    handle: str
+    is_active: bool = Field(default=True, alias="isActive")
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ────────────────────────────────────────────────────────────────────────────────
@@ -86,6 +113,19 @@ def _serialize_post(post: db_models.GameSocialPost) -> SocialPostResponse:
         tweet_text=post.tweet_text,
         source_handle=post.source_handle or (post.team.x_handle if post.team else None),
         media_type=post.media_type,
+    )
+
+
+def _serialize_account(account: db_models.TeamSocialAccount) -> SocialAccountResponse:
+    """Serialize a social account registry entry to API response."""
+    league_code = account.league.code if account.league else "UNK"
+    return SocialAccountResponse(
+        id=account.id,
+        teamId=account.team_id,
+        leagueCode=league_code,
+        platform=account.platform,
+        handle=account.handle,
+        isActive=account.is_active,
     )
 
 
@@ -142,6 +182,81 @@ async def list_social_posts(
         posts=[_serialize_post(post) for post in posts],
         total=total,
     )
+
+
+@router.get("/accounts", response_model=SocialAccountListResponse)
+async def list_social_accounts(
+    league: str | None = Query(None),
+    team_id: int | None = Query(None, alias="team_id"),
+    platform: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_db),
+) -> SocialAccountListResponse:
+    """List social account registry entries with optional filters."""
+    stmt = select(db_models.TeamSocialAccount).options(
+        selectinload(db_models.TeamSocialAccount.league)
+    )
+
+    if league:
+        stmt = stmt.join(db_models.SportsLeague).where(
+            db_models.SportsLeague.code.ilike(league)
+        )
+
+    if team_id is not None:
+        stmt = stmt.where(db_models.TeamSocialAccount.team_id == team_id)
+
+    if platform:
+        stmt = stmt.where(db_models.TeamSocialAccount.platform == platform)
+
+    from sqlalchemy import func
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await session.execute(count_stmt)).scalar() or 0
+
+    stmt = stmt.order_by(db_models.TeamSocialAccount.id).offset(offset).limit(limit)
+    result = await session.execute(stmt)
+    accounts = result.scalars().all()
+
+    return SocialAccountListResponse(
+        accounts=[_serialize_account(account) for account in accounts],
+        total=total,
+    )
+
+
+@router.post("/accounts", response_model=SocialAccountResponse, status_code=status.HTTP_201_CREATED)
+async def upsert_social_account(
+    payload: SocialAccountUpsertRequest,
+    session: AsyncSession = Depends(get_db),
+) -> SocialAccountResponse:
+    """Create or update a social account registry entry."""
+    team = await session.get(db_models.SportsTeam, payload.team_id)
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+
+    existing_stmt = select(db_models.TeamSocialAccount).where(
+        db_models.TeamSocialAccount.team_id == payload.team_id,
+        db_models.TeamSocialAccount.platform == payload.platform,
+    )
+    existing = (await session.execute(existing_stmt)).scalar_one_or_none()
+
+    if existing:
+        existing.handle = payload.handle
+        existing.is_active = payload.is_active
+        await session.flush()
+        await session.refresh(existing, attribute_names=["league"])
+        return _serialize_account(existing)
+
+    account = db_models.TeamSocialAccount(
+        team_id=payload.team_id,
+        league_id=team.league_id,
+        platform=payload.platform,
+        handle=payload.handle,
+        is_active=payload.is_active,
+    )
+    session.add(account)
+    await session.flush()
+    await session.refresh(account, attribute_names=["league"])
+    return _serialize_account(account)
 
 
 @router.get("/posts/game/{game_id}", response_model=SocialPostListResponse)
@@ -295,4 +410,3 @@ async def delete_social_post(
         )
     
     await session.delete(post)
-

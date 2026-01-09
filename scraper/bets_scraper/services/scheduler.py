@@ -130,7 +130,7 @@ def schedule_ingestion_runs(
                 end_date=end_date,
                 boxscores=True,
                 odds=True,
-                social=False,
+                social=league_code in ("NBA", "NHL"),
                 pbp=True,
                 only_missing=False,
             )

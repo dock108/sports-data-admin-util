@@ -9,10 +9,13 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from ..logging import logger
 from .collector_base import XCollectorStrategy
 from .models import CollectedPost
+from .utils import extract_x_post_id
 
-try:
+from importlib.util import find_spec
+
+if find_spec("playwright.sync_api") is not None:
     from playwright.sync_api import sync_playwright
-except Exception:  # pragma: no cover - optional dependency
+else:  # pragma: no cover - optional dependency
     sync_playwright = None
 
 
@@ -166,6 +169,12 @@ class PlaywrightXCollector(XCollectorStrategy):
                 articles = page.query_selector_all('article[data-testid="tweet"]')
 
                 for article in articles:
+                    social_context = article.query_selector('[data-testid="socialContext"]')
+                    if social_context:
+                        context_text = social_context.inner_text()
+                        if context_text and "Retweeted" in context_text:
+                            continue
+
                     # Extract post URL
                     anchor = article.query_selector('a[href*="/status/"]')
                     post_url = None
@@ -225,6 +234,7 @@ class PlaywrightXCollector(XCollectorStrategy):
                     posts.append(
                         CollectedPost(
                             post_url=post_url,
+                            external_post_id=extract_x_post_id(post_url),
                             posted_at=posted_at,
                             has_video=has_video,
                             text=text_content,
