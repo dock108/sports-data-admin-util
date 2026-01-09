@@ -6,42 +6,32 @@ Docker configuration for the sports-data-admin stack.
 
 ```bash
 cd infra
-cp .env.example .env  # Edit as needed
+cp .env.example .env  # Edit credentials
 
-# Full stack with dev profile
+# Development
 docker compose --profile dev up -d --build
+
+# Production (includes daily backup service)
+docker compose --profile prod up -d --build
 ```
 
-## Docker Profiles
+## Profiles
 
-Services use profiles to control which containers start:
+| Profile | Services | Use Case |
+|---------|----------|----------|
+| `dev` | postgres, redis, api, scraper, web, backup | Local development with daily backups |
+| `prod` | postgres, redis, api, scraper, web, backup | Production with daily backups |
 
-| Profile | Use Case |
-|---------|----------|
-| dev | Local development (all services) |
-| staging | Staging environment |
-| prod | Production deployment |
+## Services
 
-```bash
-# Start with specific profile
-docker compose --profile dev up -d
-
-# Or set environment variable
-export COMPOSE_PROFILES=dev
-docker compose up -d
-```
-
-## Files
-
-| File | Description |
-|------|-------------|
-| docker-compose.yml | Full stack with postgres, redis, api, scraper, web |
-| docker-compose.local.yml | Connect to existing localhost postgres/redis |
-| api.Dockerfile | FastAPI service |
-| scraper.Dockerfile | Celery worker with Playwright |
-| web.Dockerfile | Next.js admin UI |
-| nginx/admin.conf | Admin-only Nginx config |
-| .env.example | Environment template |
+| Service | Port | Description |
+|---------|------|-------------|
+| postgres | 5432 | PostgreSQL database |
+| redis | 6379 | Redis for Celery queue |
+| api | 8000 | FastAPI backend |
+| scraper | — | Celery worker |
+| web | 3000 | Next.js admin UI |
+| backup | — | Daily backup service (prod only) |
 
 ## URLs
 
@@ -51,86 +41,180 @@ docker compose up -d
 | API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
 
-## Database Configuration
+## Files
 
-The stack can connect to either:
-
-### 1. Docker Postgres (Fresh Database)
-Default when using Docker postgres container.
-
-### 2. Host Postgres (Existing Database)
-The default configuration connects to `host.docker.internal:5432`, allowing the Docker containers to access a Postgres instance running on your host machine.
-
-Set these in `.env`:
-```bash
-POSTGRES_DB=dock108
-POSTGRES_USER=dock108
-POSTGRES_PASSWORD=yourpassword
-```
+| File | Description |
+|------|-------------|
+| `docker-compose.yml` | All services with dev/prod profiles |
+| `api.Dockerfile` | FastAPI service |
+| `scraper.Dockerfile` | Celery worker with Playwright |
+| `web.Dockerfile` | Next.js admin UI |
+| `scripts/backup.sh` | Database backup script |
+| `scripts/restore.sh` | Database restore script |
+| `backups/` | Local backup storage |
+| `.env.example` | Environment template |
 
 ## Commands
 
 ```bash
-# Start all services
+# Start development stack
 docker compose --profile dev up -d --build
 
+# Start production stack (includes backup service)
+docker compose --profile prod up -d --build
+
 # View logs
-docker compose --profile dev logs -f api
+docker compose logs -f api
+docker compose logs -f scraper
 
 # Restart a service
-docker compose --profile dev restart api
-
-# Rebuild single service
-docker compose --profile dev up -d --build scraper
+docker compose restart api
 
 # Stop all
 docker compose --profile dev down
 
-# Stop and delete volumes
+# Stop and delete volumes (WARNING: deletes data)
 docker compose --profile dev down -v
+```
+
+## Database Backup & Restore
+
+### Automatic Backups (Production)
+
+When running with `--profile prod`, the backup service automatically:
+- Creates a compressed SQL dump daily
+- Stores backups in `infra/backups/`
+- Keeps only the last 7 days of backups
+- Maintains a `latest.sql.gz` symlink
+
+### Manual Backup
+
+```bash
+# Create a backup now
+docker exec sports-postgres /scripts/backup.sh
+
+# List available backups
+ls -la infra/backups/
+```
+
+### Restore from Backup
+
+```bash
+# Restore from latest backup
+docker exec sports-postgres /scripts/restore.sh
+
+# Restore from specific backup
+docker exec sports-postgres /scripts/restore.sh /backups/sports_20260108_120000.sql.gz
+```
+
+### Backup to External Storage
+
+For production, consider copying backups offsite:
+
+```bash
+# Copy to S3
+aws s3 sync infra/backups/ s3://your-bucket/sports-backups/
+
+# Copy to remote server
+rsync -avz infra/backups/ user@backup-server:/backups/sports/
+```
+
+## Data Migration
+
+### Import Existing Data
+
+If you have data in a host Postgres and want to migrate to Docker:
+
+```bash
+# 1. Export from host Postgres
+pg_dump -h localhost -U dock108 dock108 > data_export.sql
+
+# 2. Start the Docker stack
+docker compose --profile dev up -d
+
+# 3. Wait for postgres to be ready
+docker compose logs -f postgres  # Wait for "ready to accept connections"
+
+# 4. Import into Docker postgres
+cat data_export.sql | docker exec -i sports-postgres psql -U sports -d sports
+
+# 5. Verify
+docker exec sports-postgres psql -U sports -d sports -c "SELECT COUNT(*) FROM sports_games;"
 ```
 
 ## Migrations
 
-Migrations run automatically on API startup when `RUN_MIGRATIONS=true`.
+Alembic migrations run automatically on API startup when `RUN_MIGRATIONS=true`.
 
-To disable auto-migrations:
 ```bash
-RUN_MIGRATIONS=false
-```
+# Check current version
+docker exec sports-api alembic current
 
-Manual migration:
-```bash
+# Run pending migrations manually
 docker exec sports-api alembic upgrade head
+
+# Create a new migration
+docker exec sports-api alembic revision --autogenerate -m "describe change"
 ```
-
-## Health Checks
-
-All services have health checks:
-
-| Service | Check |
-|---------|-------|
-| postgres | `pg_isready` |
-| redis | `redis-cli ping` |
-| api | HTTP GET `/healthz` |
-| web | HTTP GET `/` |
-| scraper | Celery ping |
 
 ## Environment Variables
 
-See `.env.example` for all available variables.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `POSTGRES_DB` | Yes | Database name |
+| `POSTGRES_USER` | Yes | Database user |
+| `POSTGRES_PASSWORD` | Yes | Database password |
+| `POSTGRES_PORT` | No | Host port for postgres (default: 5432) |
+| `REDIS_PASSWORD` | No | Redis password |
+| `ENVIRONMENT` | No | `dev` or `prod` |
+| `RUN_MIGRATIONS` | No | Run Alembic on startup |
+| `ODDS_API_KEY` | No | The Odds API key |
+| `X_AUTH_TOKEN` | No | X/Twitter auth cookie |
+| `X_CT0` | No | X/Twitter CSRF cookie |
+| `NEXT_PUBLIC_SPORTS_API_URL` | Yes | API URL for frontend |
+| `ALLOWED_CORS_ORIGINS` | Prod | Allowed CORS origins |
 
-Key variables:
+## Health Checks
 
-| Variable | Description |
-|----------|-------------|
-| POSTGRES_DB | Database name |
-| POSTGRES_USER | Database user |
-| POSTGRES_PASSWORD | Database password |
-| REDIS_PASSWORD | Redis password (optional) |
-| X_AUTH_TOKEN | X/Twitter auth cookie |
-| X_CT0 | X/Twitter CSRF cookie |
-| ODDS_API_KEY | The Odds API key |
-| RUN_MIGRATIONS | Auto-run Alembic on startup |
+All services have health checks configured:
 
-See the [root README](../README.md) for setup details and the [docs index](INDEX.md) for more guides.
+```bash
+# Check all service health
+docker compose ps
+
+# Check specific service
+docker inspect --format='{{.State.Health.Status}}' sports-api
+```
+
+## Troubleshooting
+
+### Postgres connection refused
+
+```bash
+# Check if postgres is running
+docker compose ps postgres
+
+# Check postgres logs
+docker compose logs postgres
+```
+
+### API won't start
+
+```bash
+# Check API logs
+docker compose logs api
+
+# Common issues:
+# - Database not ready: wait for postgres healthcheck
+# - Migration error: check alembic version
+```
+
+### Scraper not processing jobs
+
+```bash
+# Check scraper logs
+docker compose logs scraper
+
+# Check Redis connection
+docker exec sports-redis redis-cli ping
+```

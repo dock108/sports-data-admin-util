@@ -1,1 +1,1 @@
-export * from "./sportsAdmin";
+export * from "./sportsAdmin/index";

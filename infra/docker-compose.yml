@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: sports-postgres
-    profiles: ["dev", "staging", "prod"]
+    profiles: ["dev", "prod"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-sports}
       POSTGRES_USER: ${POSTGRES_USER:-sports}
@@ -12,6 +10,10 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./scripts:/scripts
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - internal
     healthcheck:
@@ -23,7 +25,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: sports-redis
-    profiles: ["dev", "staging", "prod"]
+    profiles: ["dev", "prod"]
     command: >
       sh -c "redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}"
     environment:
@@ -41,16 +43,18 @@ services:
       context: ..
       dockerfile: infra/api.Dockerfile
     container_name: sports-api
-    profiles: ["dev", "staging", "prod"]
+    profiles: ["dev", "prod"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sports}:${POSTGRES_PASSWORD:-sports}@host.docker.internal:5432/${POSTGRES_DB:-sports}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sports}:${POSTGRES_PASSWORD:-sports}@postgres:5432/${POSTGRES_DB:-sports}
       REDIS_URL: redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379/2
       CELERY_BROKER_URL: redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379/2
       CELERY_RESULT_BACKEND: redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379/2
       ALLOWED_CORS_ORIGINS: ${ALLOWED_CORS_ORIGINS:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -69,19 +73,20 @@ services:
       context: ..
       dockerfile: infra/scraper.Dockerfile
     container_name: sports-scraper
-    profiles: ["dev", "staging", "prod"]
+    profiles: ["dev", "prod"]
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-sports}:${POSTGRES_PASSWORD:-sports}@host.docker.internal:5432/${POSTGRES_DB:-sports}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-sports}:${POSTGRES_PASSWORD:-sports}@postgres:5432/${POSTGRES_DB:-sports}
       REDIS_URL: redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379/2
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: "2"
       ODDS_API_KEY: ${ODDS_API_KEY:-}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-      # X/Twitter authentication for social scraping
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       X_AUTH_TOKEN: ${X_AUTH_TOKEN:-}
       X_CT0: ${X_CT0:-}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -100,9 +105,9 @@ services:
       context: ..
       dockerfile: infra/web.Dockerfile
     container_name: sports-web
-    profiles: ["dev", "staging", "prod"]
+    profiles: ["dev", "prod"]
     environment:
-      NEXT_PUBLIC_SPORTS_API_URL: http://localhost:8000
+      NEXT_PUBLIC_SPORTS_API_URL: ${NEXT_PUBLIC_SPORTS_API_URL:-http://localhost:8000}
     depends_on:
       - api
     networks:
@@ -114,6 +119,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backup:
+    image: postgres:16-alpine
+    container_name: sports-backup
+    profiles: ["dev", "prod"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sports}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sports}
+      POSTGRES_DB: ${POSTGRES_DB:-sports}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-sports}
+      PGHOST: postgres
+    networks:
+      - internal
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Backup service started. Running daily backups..."
+        while true; do
+          /scripts/backup.sh
+          sleep 86400
+        done
 
 volumes:
   postgres-data:
