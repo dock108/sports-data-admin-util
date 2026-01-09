@@ -1,3 +1,19 @@
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+# Ensure the scraper package is importable when running from repo root without installing it.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRAPER_ROOT = REPO_ROOT / "scraper"
+if str(SCRAPER_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRAPER_ROOT))
+
+# The scraper settings are loaded at import time and require DATABASE_URL.
+# For these pure unit tests, a dummy local URL is sufficient.
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/test_db")
+
 from bets_scraper.live.nba import _parse_nba_clock
 from bets_scraper.persistence.games import resolve_status_transition
 

@@ -1,3 +1,11 @@
+/**
+ * API client for sports admin endpoints.
+ *
+ * Handles both browser and server-side (SSR) requests. In Docker environments,
+ * server-side requests use SPORTS_API_INTERNAL_URL to reach the API container
+ * directly, while browser requests use NEXT_PUBLIC_SPORTS_API_URL.
+ */
+
 function getApiBase(): string {
   const isBrowser = typeof window !== "undefined";
 

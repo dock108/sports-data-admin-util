@@ -23,11 +23,11 @@
 |-------|-------------|
 | [Operator Runbook](OPERATOR_RUNBOOK.md) | Production operations, backups, monitoring |
 | [Feature Flags](feature-flags.md) | Environment toggles and behavior switches |
+| [Changelog](CHANGELOG.md) | Recent changes and releases |
 
 ## Development
 
 | Guide | Description |
 |-------|-------------|
-| [Project Intent](PROJECT_INTENT.md) | Why this platform exists, core principles |
+| [Development History](DEVELOPMENT_HISTORY.md) | Summary of beta phases 0-5 |
 | [Codex Task Rules](CODEX_TASK_RULES.md) | How to define tasks for AI agents |
-| [Changelog](CHANGELOG.md) | Recent changes and releases |

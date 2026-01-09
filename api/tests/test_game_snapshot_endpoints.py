@@ -59,6 +59,14 @@ class _FakeSession:
     async def get(self, model: object, game_id: int) -> SimpleNamespace | None:
         return self._get_result
 
+    # Snapshot endpoint records a job run via session.add(...).
+    # These unit tests use a fake session, so make add/commit safe no-ops.
+    def add(self, obj: object) -> None:  # noqa: ANN001
+        return None
+
+    async def commit(self) -> None:
+        return None
+
 
 class TestGameSnapshotEndpoints(unittest.TestCase):
     def tearDown(self) -> None:
@@ -70,8 +78,8 @@ class TestGameSnapshotEndpoints(unittest.TestCase):
 
         app.dependency_overrides[get_db] = override_get_db
 
-    def _build_game(self, status: str = "scheduled") -> SimpleNamespace:
-        league = SimpleNamespace(code="NBA")
+    def _build_game(self, status: str = "scheduled", *, league_code: str = "NBA") -> SimpleNamespace:
+        league = SimpleNamespace(code=league_code)
         home_team = SimpleNamespace(id=1, name="Home", abbreviation="HME")
         away_team = SimpleNamespace(id=2, name="Away", abbreviation="AWY")
         now = datetime(2026, 1, 15, tzinfo=timezone.utc)
@@ -131,6 +139,21 @@ class TestGameSnapshotEndpoints(unittest.TestCase):
 
         response = client.get("/games?range=bad")
         self.assertEqual(response.status_code, 400)
+
+    def test_list_games_filters_by_league_param(self) -> None:
+        nba_game = self._build_game(status="final", league_code="NBA")
+        ncaab_game = self._build_game(status="final", league_code="NCAAB")
+        session = _FakeSession(
+            execute_results=[_FakeResult(rows=[(nba_game, False, False, False), (ncaab_game, False, False, False)])],
+            get_result=None,
+        )
+        self._override_db(session)
+        client = TestClient(app)
+
+        response = client.get("/games?range=last2&league=NBA")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([game["league"] for game in payload["games"]], ["NBA"])
 
     def test_pbp_empty_returns_empty_periods(self) -> None:
         game = self._build_game()

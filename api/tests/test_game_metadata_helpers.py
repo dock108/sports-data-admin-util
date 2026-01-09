@@ -8,7 +8,10 @@ from datetime import datetime
 from api.app.game_metadata.models import GameContext, StandingsEntry, TeamRatings
 from api.app.game_metadata.nuggets import DEFAULT_NUGGET, _normalize_tags, generate_nugget
 from api.app.game_metadata.scoring import _normalize, excitement_score, quality_score
-from api.app.routers.sports.games import _normalize_score, _select_preview_entry
+from api.app.routers.sports.game_helpers import (
+    normalize_score as _normalize_score,
+    select_preview_entry as _select_preview_entry,
+)
 
 
 class TestGameMetadataHelpers(unittest.TestCase):

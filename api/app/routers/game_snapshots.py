@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from .. import db_models
 from ..config import settings
 from ..db import AsyncSession, get_db
-from ..services.recap_generator import RecapResult, build_recap
+from ..services.recap_generator import build_recap
 from ..services.reveal_levels import RevealLevel, parse_reveal_level
 from ..utils.reveal_filter import classify_reveal_risk
 
@@ -176,6 +176,7 @@ async def _record_snapshot_job_run(
 @router.get("/games", response_model=GameSnapshotResponse)
 async def list_games(
     range: str = Query("current"),
+    league: str | None = Query(None),
     assume_now: datetime | None = Query(None),
     session: AsyncSession = Depends(get_db),
 ) -> GameSnapshotResponse:
@@ -184,6 +185,8 @@ async def list_games(
 
     Example request:
         GET /games?range=current
+    Example request (single league):
+        GET /games?range=current&league=NBA
     Example response:
         {
           "range": "current",
@@ -204,6 +207,9 @@ async def list_games(
     """
     _validate_range(range)
     started_at = datetime.now(timezone.utc)
+    league_filter: str | None = league.strip().upper() if league else None
+    if league_filter == "":
+        league_filter = None
     if assume_now is not None and settings.environment != "development":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -259,6 +265,11 @@ async def list_games(
     )
 
     try:
+        league_clause = (
+            db_models.SportsGame.league.has(db_models.SportsLeague.code == league_filter)
+            if league_filter
+            else None
+        )
         stmt = (
             select(
                 db_models.SportsGame,
@@ -272,6 +283,7 @@ async def list_games(
                 selectinload(db_models.SportsGame.away_team),
             )
             .where(filters)
+            .where(league_clause if league_clause is not None else True)
             .order_by(db_models.SportsGame.game_date.asc())
         )
         results = await session.execute(stmt)
@@ -292,6 +304,20 @@ async def list_games(
     league_codes: set[str] = set()
     for game, has_pbp_value, has_social_value, has_conflict in rows:
         league_code = game.league.code if game.league else "UNK"
+        if league_filter and league_code != league_filter:
+            # Safety guard: if the DB layer ever returns mixed leagues, do not serve them.
+            excluded += 1
+            logger.warning(
+                "snapshot_game_excluded",
+                extra={
+                    "league": league_code,
+                    "game_id": game.id,
+                    "external_id": getattr(game, "source_game_key", None),
+                    "reason": "league_filter_mismatch",
+                    "requested_league": league_filter,
+                },
+            )
+            continue
         league_codes.add(league_code)
         unsafe_reason: str | None = None
         if has_conflict:
@@ -305,10 +331,12 @@ async def list_games(
             excluded += 1
             logger.warning(
                 "snapshot_game_excluded",
-                league=league_code,
-                game_id=game.id,
-                external_id=game.source_game_key,
-                reason=unsafe_reason,
+                extra={
+                    "league": league_code,
+                    "game_id": game.id,
+                    "external_id": getattr(game, "source_game_key", None),
+                    "reason": unsafe_reason,
+                },
             )
             continue
         timestamps = [
@@ -334,7 +362,7 @@ async def list_games(
         )
 
     if excluded:
-        logger.info("snapshot_games_excluded", range=range, excluded=excluded)
+        logger.info("snapshot_games_excluded", extra={"range": range, "excluded": excluded})
 
     await _record_snapshot_job_run(
         session,
