@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Tuple
 
 from sqlalchemy import exists, func, not_
@@ -141,10 +141,26 @@ class ScrapeRunManager:
         if not league:
             return []
 
+        now = utcnow()
+        recent_cutoff = now - timedelta(hours=settings.social_config.recent_game_window_hours)
+        start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+
         query = session.query(db_models.SportsGame.id).filter(
             db_models.SportsGame.league_id == league.id,
-            db_models.SportsGame.game_date >= datetime.combine(start_date, datetime.min.time()),
-            db_models.SportsGame.game_date <= datetime.combine(end_date, datetime.max.time()),
+            db_models.SportsGame.game_date >= start_dt,
+            db_models.SportsGame.game_date <= end_dt,
+        )
+
+        live_status = db_models.GameStatus.live.value
+        final_statuses = [db_models.GameStatus.final.value, db_models.GameStatus.completed.value]
+        query = query.filter(
+            (db_models.SportsGame.status == live_status)
+            | (
+                db_models.SportsGame.status.in_(final_statuses)
+                & db_models.SportsGame.end_time.isnot(None)
+                & (db_models.SportsGame.end_time >= recent_cutoff)
+            )
         )
 
         if only_missing:
@@ -298,37 +314,6 @@ class ScrapeRunManager:
 
                 logger.info("odds_complete", count=summary["odds"], run_id=run_id)
 
-            # Social scraping
-            if config.social:
-                logger.info(
-                    "social_scraping_start",
-                    run_id=run_id,
-                    league=config.league_code,
-                    start_date=str(start),
-                    end_date=str(end),
-                    only_missing=config.only_missing,
-                    updated_before=str(updated_before_dt) if updated_before_dt else None,
-                )
-
-                with get_session() as session:
-                    game_ids = self._get_games_for_social(
-                        session, config.league_code, start, end,
-                        only_missing=config.only_missing,
-                        updated_before=updated_before_dt,
-                    )
-                logger.info("found_games_for_social", count=len(game_ids), run_id=run_id)
-
-                for game_id in game_ids:
-                    try:
-                        with get_session() as session:
-                            results = self.social_collector.collect_for_game(session, game_id)
-                            for result in results:
-                                summary["social_posts"] += result.posts_saved
-                    except Exception as e:
-                        logger.warning("social_collection_failed", game_id=game_id, error=str(e))
-
-                logger.info("social_complete", count=summary["social_posts"], run_id=run_id)
-
             # Play-by-play scraping
             if config.pbp:
                 logger.info(
@@ -357,6 +342,44 @@ class ScrapeRunManager:
                     )
 
                 logger.info("pbp_complete", count=summary["pbp_games"], run_id=run_id)
+
+            # Social scraping (runs after PBP ingestion to ensure timestamps are available)
+            if config.social:
+                if config.league_code not in ("NBA", "NHL"):
+                    logger.info(
+                        "social_scraping_skipped_league",
+                        run_id=run_id,
+                        league=config.league_code,
+                    )
+                else:
+                    logger.info(
+                        "social_scraping_start",
+                        run_id=run_id,
+                        league=config.league_code,
+                        start_date=str(start),
+                        end_date=str(end),
+                        only_missing=config.only_missing,
+                        updated_before=str(updated_before_dt) if updated_before_dt else None,
+                    )
+
+                    with get_session() as session:
+                        game_ids = self._get_games_for_social(
+                            session, config.league_code, start, end,
+                            only_missing=config.only_missing,
+                            updated_before=updated_before_dt,
+                        )
+                    logger.info("found_games_for_social", count=len(game_ids), run_id=run_id)
+
+                    for game_id in game_ids:
+                        try:
+                            with get_session() as session:
+                                results = self.social_collector.collect_for_game(session, game_id)
+                                for result in results:
+                                    summary["social_posts"] += result.posts_saved
+                        except Exception as e:
+                            logger.warning("social_collection_failed", game_id=game_id, error=str(e))
+
+                    logger.info("social_complete", count=summary["social_posts"], run_id=run_id)
 
             # Build summary string
             summary_parts = []

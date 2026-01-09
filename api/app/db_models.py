@@ -77,6 +77,7 @@ class SportsTeam(Base):
     league: Mapped[SportsLeague] = relationship("SportsLeague", back_populates="teams")
     home_games: Mapped[list["SportsGame"]] = relationship("SportsGame", foreign_keys="[SportsGame.home_team_id]", back_populates="home_team")
     away_games: Mapped[list["SportsGame"]] = relationship("SportsGame", foreign_keys="[SportsGame.away_team_id]", back_populates="away_team")
+    social_accounts: Mapped[list["TeamSocialAccount"]] = relationship("TeamSocialAccount", back_populates="team", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_sports_teams_league_name", "league_id", "name", unique=True),
@@ -311,6 +312,7 @@ class GameSocialPost(Base):
     game_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_games.id", ondelete="CASCADE"), nullable=False, index=True)
     team_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_teams.id", ondelete="CASCADE"), nullable=False, index=True)
     post_url: Mapped[str] = mapped_column("tweet_url", Text, nullable=False, unique=True)
+    platform: Mapped[str] = mapped_column(String(20), server_default="x", nullable=False)
     external_post_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     has_video: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -320,6 +322,7 @@ class GameSocialPost(Base):
     source_handle: Mapped[str | None] = mapped_column(String(100), nullable=True)
     media_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     spoiler_risk: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    spoiler_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -332,6 +335,53 @@ class GameSocialPost(Base):
         Index("idx_social_posts_posted_at", "posted_at"),
         Index("idx_social_posts_media_type", "media_type"),
         Index("idx_social_posts_external_id", "external_post_id"),
+        UniqueConstraint("platform", "external_post_id", name="uq_social_posts_platform_external_id"),
+    )
+
+
+class TeamSocialAccount(Base):
+    """Registry of official team social accounts."""
+
+    __tablename__ = "team_social_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    league_id: Mapped[int] = mapped_column(Integer, ForeignKey("sports_leagues.id", ondelete="CASCADE"), nullable=False, index=True)
+    platform: Mapped[str] = mapped_column(String(20), nullable=False)
+    handle: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    team: Mapped[SportsTeam] = relationship("SportsTeam", back_populates="social_accounts")
+    league: Mapped[SportsLeague] = relationship("SportsLeague")
+
+    __table_args__ = (
+        UniqueConstraint("platform", "handle", name="uq_team_social_accounts_platform_handle"),
+        UniqueConstraint("team_id", "platform", name="uq_team_social_accounts_team_platform"),
+        Index("idx_team_social_accounts_league", "league_id"),
+    )
+
+
+class SocialAccountPoll(Base):
+    """Cache metadata for social polling requests."""
+
+    __tablename__ = "social_account_polls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    handle: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    posts_found: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rate_limited_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("platform", "handle", "window_start", "window_end", name="uq_social_account_poll_window"),
+        Index("idx_social_account_polls_handle_window", "handle", "window_start", "window_end"),
     )
 
 

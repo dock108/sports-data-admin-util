@@ -143,14 +143,59 @@ CREATE TABLE IF NOT EXISTS game_social_posts (
     game_id INTEGER NOT NULL REFERENCES sports_games(id) ON DELETE CASCADE,
     team_id INTEGER NOT NULL REFERENCES sports_teams(id) ON DELETE CASCADE,
     tweet_url TEXT NOT NULL,
+    platform VARCHAR(20) NOT NULL DEFAULT 'x',
+    external_post_id VARCHAR(100),
     posted_at TIMESTAMPTZ NOT NULL,
     has_video BOOLEAN NOT NULL DEFAULT FALSE,
+    tweet_text TEXT,
+    video_url TEXT,
+    image_url TEXT,
+    source_handle VARCHAR(100),
+    media_type VARCHAR(20),
+    spoiler_risk BOOLEAN NOT NULL DEFAULT FALSE,
+    spoiler_reason VARCHAR(200),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_social_posts_game ON game_social_posts(game_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_team ON game_social_posts(team_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_posted_at ON game_social_posts(posted_at);
+CREATE INDEX IF NOT EXISTS idx_social_posts_media_type ON game_social_posts(media_type);
+CREATE INDEX IF NOT EXISTS idx_social_posts_external_id ON game_social_posts(external_post_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_social_posts_platform_external_id ON game_social_posts(platform, external_post_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_social_posts_url ON game_social_posts(tweet_url);
+
+-- Team social account registry
+CREATE TABLE IF NOT EXISTS team_social_accounts (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES sports_teams(id) ON DELETE CASCADE,
+    league_id INTEGER NOT NULL REFERENCES sports_leagues(id) ON DELETE CASCADE,
+    platform VARCHAR(20) NOT NULL,
+    handle VARCHAR(100) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    UNIQUE (platform, handle),
+    UNIQUE (team_id, platform)
+);
+CREATE INDEX IF NOT EXISTS idx_team_social_accounts_league ON team_social_accounts(league_id);
+CREATE INDEX IF NOT EXISTS idx_team_social_accounts_team ON team_social_accounts(team_id);
+
+-- Social polling cache metadata
+CREATE TABLE IF NOT EXISTS social_account_polls (
+    id SERIAL PRIMARY KEY,
+    platform VARCHAR(20) NOT NULL,
+    handle VARCHAR(100) NOT NULL,
+    window_start TIMESTAMPTZ NOT NULL,
+    window_end TIMESTAMPTZ NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    posts_found INTEGER NOT NULL DEFAULT 0,
+    rate_limited_until TIMESTAMPTZ,
+    error_detail TEXT,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    UNIQUE (platform, handle, window_start, window_end)
+);
+CREATE INDEX IF NOT EXISTS idx_social_account_polls_handle_window ON social_account_polls(handle, window_start, window_end);
+CREATE INDEX IF NOT EXISTS idx_social_account_polls_platform ON social_account_polls(platform);
 
 -- Compact mode thresholds
 CREATE TABLE IF NOT EXISTS compact_mode_thresholds (
@@ -205,4 +250,3 @@ SELECT id, '[1, 2, 3]'::jsonb, 'Goal-lead thresholds for compact mode moments.'
 FROM sports_leagues
 WHERE code = 'NHL'
 ON CONFLICT (sport_id) DO NOTHING;
-

@@ -8,6 +8,8 @@ class CollectedPost(BaseModel):
     """A post collected from a team's X timeline."""
 
     post_url: str = Field(..., description="Full URL to the X post")
+    external_post_id: str | None = Field(default=None, description="Platform-specific post ID")
+    platform: str = Field(default="x", description="Social platform identifier")
     posted_at: datetime = Field(..., description="When the post was published")
     has_video: bool = Field(default=False, description="Whether post contains video")
     text: str | None = Field(default=None, description="Post text/caption")
@@ -26,6 +28,8 @@ class PostCollectionJob(BaseModel):
     x_handle: str = Field(..., description="X handle to collect from")
     window_start: datetime = Field(..., description="Start of collection window")
     window_end: datetime = Field(..., description="End of collection window")
+    game_start: datetime = Field(..., description="Game start time for attachment rules")
+    game_end: datetime | None = Field(default=None, description="Game end time for attachment rules")
 
 
 class PostCollectionResult(BaseModel):
@@ -34,7 +38,6 @@ class PostCollectionResult(BaseModel):
     job: PostCollectionJob
     posts_found: int = Field(default=0)
     posts_saved: int = Field(default=0)
-    posts_filtered: int = Field(default=0, description="Posts removed by spoiler filter")
+    posts_flagged_spoiler: int = Field(default=0, description="Posts marked as spoiler risk")
     errors: list[str] = Field(default_factory=list)
     completed_at: datetime | None = None
-

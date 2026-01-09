@@ -40,6 +40,16 @@ class ScraperConfig(BaseModel):
     force_cache_refresh: bool = False
 
 
+class SocialConfig(BaseModel):
+    platform_rate_limit_max_requests: int = Field(default=300)
+    platform_rate_limit_window_seconds: int = Field(default=900)
+    team_poll_interval_seconds: int = Field(default=900)
+    request_cache_ttl_seconds: int = Field(default=900)
+    recent_game_window_hours: int = Field(default=12)
+    pregame_window_minutes: int = Field(default=180)
+    postgame_window_minutes: int = Field(default=180)
+
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -97,6 +107,7 @@ class Settings(BaseSettings):
     environment: str = Field("development", alias="ENVIRONMENT")
     scraper_config: ScraperConfig = Field(default_factory=ScraperConfig)
     odds_config: OddsProviderConfig = Field(default_factory=OddsProviderConfig)
+    social_config: SocialConfig = Field(default_factory=SocialConfig)
     theory_engine_app_path: str | None = Field(None, alias="THEORY_ENGINE_APP_PATH")
     scraper_html_cache_dir_override: str | None = Field(None, alias="SCRAPER_HTML_CACHE_DIR")
     scraper_force_cache_refresh_override: bool | None = Field(None, alias="SCRAPER_FORCE_CACHE_REFRESH")
