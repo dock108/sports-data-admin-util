@@ -26,6 +26,8 @@ See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
 
 Infrastructure and deployment references live in [docs/INFRA.md](docs/INFRA.md). The `infra/` directory contains Docker and compose assets used for local and deploy environments.
 
+Production deployments should use the repository-root `docker-compose.prod.yml` as the source of truth for the Hetzner + Cloudflare stack.
+
 ## Documentation
 
 Start with the docs index: [docs/INDEX.md](docs/INDEX.md).
