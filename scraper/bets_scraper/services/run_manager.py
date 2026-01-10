@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict
 
 from ..config import settings
@@ -326,11 +326,28 @@ class ScrapeRunManager:
                         updated_before=str(updated_before_dt) if updated_before_dt else None,
                     )
 
+                    # Detect if this is a backfill operation. If the end date is older
+                    # than the recent_game_window, we're doing historical backfill and should
+                    # skip the recency filter.
+                    now = utcnow()
+                    recent_window = timedelta(hours=settings.social_config.recent_game_window_hours)
+                    end_dt = datetime.combine(end, datetime.max.time()).replace(tzinfo=timezone.utc)
+                    is_backfill = (now - end_dt) > recent_window
+                    
+                    if is_backfill:
+                        logger.info(
+                            "social_backfill_mode",
+                            run_id=run_id,
+                            league=config.league_code,
+                            reason="end_date is older than recent_game_window",
+                        )
+                    
                     with get_session() as session:
                         game_ids = select_games_for_social(
                             session, config.league_code, start, end,
                             only_missing=config.only_missing,
                             updated_before=updated_before_dt,
+                            is_backfill=is_backfill,
                         )
                     logger.info("found_games_for_social", count=len(game_ids), run_id=run_id)
 

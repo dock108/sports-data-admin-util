@@ -50,6 +50,11 @@ class SocialConfig(BaseModel):
     recent_game_window_hours: int = Field(default=12)
     pregame_window_minutes: int = Field(default=180)
     postgame_window_minutes: int = Field(default=180)
+    # Gameday window: defines when posts can be linked to games on that date.
+    # A "gameday" runs from gameday_start_hour ET to gameday_end_hour ET the next day.
+    # Default: 10 AM ET to 2 AM ET next day (16-hour window covering all game times)
+    gameday_start_hour: int = Field(default=10)  # 10 AM ET
+    gameday_end_hour: int = Field(default=2)     # 2 AM ET next day
 
 
 class Settings(BaseSettings):

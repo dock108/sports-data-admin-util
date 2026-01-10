@@ -94,8 +94,21 @@ def select_games_for_social(
     *,
     only_missing: bool = False,
     updated_before: datetime | None = None,
+    is_backfill: bool = False,
 ) -> list[int]:
-    """Return game IDs for social scraping with filters."""
+    """Return game IDs for social scraping with filters.
+    
+    Args:
+        session: Database session
+        league_code: League to query (e.g., "NBA", "NHL")
+        start_date: Start of date range
+        end_date: End of date range
+        only_missing: Skip games that already have social posts
+        updated_before: Only include games with stale social data
+        is_backfill: If True, skip the recent game window filter. Use this
+                     for historical backfills where we want to scrape social
+                     for games that ended more than `recent_game_window_hours` ago.
+    """
     league = session.query(db_models.SportsLeague).filter(
         db_models.SportsLeague.code == league_code
     ).first()
@@ -115,16 +128,27 @@ def select_games_for_social(
 
     live_status = db_models.GameStatus.live.value
     final_statuses = [db_models.GameStatus.final.value, db_models.GameStatus.completed.value]
-    query = query.filter(
-        or_(
-            db_models.SportsGame.status == live_status,
-            and_(
+    
+    if is_backfill:
+        # Backfill mode: include all completed/final games regardless of when they ended
+        query = query.filter(
+            or_(
+                db_models.SportsGame.status == live_status,
                 db_models.SportsGame.status.in_(final_statuses),
-                db_models.SportsGame.end_time.isnot(None),
-                db_models.SportsGame.end_time >= recent_cutoff,
-            ),
+            )
         )
-    )
+    else:
+        # Real-time mode: only include live games or games that ended recently
+        query = query.filter(
+            or_(
+                db_models.SportsGame.status == live_status,
+                and_(
+                    db_models.SportsGame.status.in_(final_statuses),
+                    db_models.SportsGame.end_time.isnot(None),
+                    db_models.SportsGame.end_time >= recent_cutoff,
+                ),
+            )
+        )
 
     if only_missing:
         has_posts = exists().where(
