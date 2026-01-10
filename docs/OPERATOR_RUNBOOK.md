@@ -38,14 +38,12 @@ flowchart LR
 From `infra/`:
 
 ```bash
-docker compose --env-file ../.env -f docker-compose.yml --profile dev up --build
+cd infra
+# Compose auto-loads infra/.env when run from this directory
+docker compose --profile dev up -d --build
 ```
 
-Use `docker-compose.local.yml` if you want to connect to an existing localhost Postgres:
-
-```bash
-docker compose --env-file ../.env -f docker-compose.local.yml up --build
-```
+If you need non-default networking (e.g. host Postgres), use a compose override file (not provided by default).
 
 ## Production Deployment
 
@@ -131,6 +129,7 @@ Upload options:
 gzip -cd sports_YYYYMMDDTHHMMSSZ.sql.gz | psql "${DATABASE_URL}"
 ```
 For container restores, set `CONFIRM_DESTRUCTIVE=true` when running `/scripts/restore.sh`.
+Note: restore uses `DROP DATABASE ... WITH (FORCE)` on Postgres 16+ so you don’t need to stop app containers first.
 
 ### Destructive Operation Guardrails
 

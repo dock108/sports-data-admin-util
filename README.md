@@ -11,6 +11,8 @@ cp .env.example .env
 docker compose --profile dev up -d --build
 ```
 
+Note: `infra/.env` contains secrets and is gitignored.
+
 **URLs**
 - Admin UI: http://localhost:3000
 - API Docs: http://localhost:8000/docs

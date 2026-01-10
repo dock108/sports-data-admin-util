@@ -2,7 +2,7 @@
 
 Revision ID: 20260120_000001
 Revises: 20260115_000002
-Create Date: 2026-01-20
+Create Date: 2026-01-10
 
 Adds per-game update timestamps, job run tracking, conflict guards, and PBP gap records.
 """

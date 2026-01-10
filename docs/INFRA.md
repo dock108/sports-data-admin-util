@@ -19,8 +19,8 @@ docker compose --profile prod up -d --build
 
 | Profile | Services | Use Case |
 |---------|----------|----------|
-| `dev` | postgres, redis, api, scraper, web, backup | Local development with daily backups |
-| `prod` | postgres, redis, api, scraper, web, backup | Production with daily backups |
+| `dev` | postgres, redis, api, scraper, web, backup | Local development |
+| `prod` | postgres, redis, api, scraper, web, backup | Production |
 
 ## Services
 
@@ -31,7 +31,7 @@ docker compose --profile prod up -d --build
 | api | 8000 | FastAPI backend |
 | scraper | — | Celery worker |
 | web | 3000 | Next.js admin UI |
-| backup | — | Daily backup service (prod only) |
+| backup | — | Daily backup service |
 
 ## URLs
 
@@ -100,11 +100,11 @@ ls -la infra/backups/
 ### Restore from Backup
 
 ```bash
-# Restore from latest backup
-docker exec sports-postgres /scripts/restore.sh
+# Restore from latest backup (destructive)
+CONFIRM_DESTRUCTIVE=true docker exec sports-postgres /scripts/restore.sh
 
 # Restore from specific backup
-docker exec sports-postgres /scripts/restore.sh /backups/sports_20260108_120000.sql.gz
+CONFIRM_DESTRUCTIVE=true docker exec sports-postgres /scripts/restore.sh /backups/sports_20260108_120000.sql.gz
 ```
 
 ### Backup to External Storage
@@ -170,12 +170,14 @@ docker exec sports-api alembic revision --autogenerate -m "describe change"
 | `POSTGRES_PASSWORD` | Yes | Database password |
 | `POSTGRES_PORT` | No | Host port for postgres (default: 5432) |
 | `REDIS_PASSWORD` | No | Redis password |
-| `ENVIRONMENT` | No | `dev` or `prod` |
+| `ENVIRONMENT` | No | `development` or `production` |
 | `RUN_MIGRATIONS` | No | Run Alembic on startup (dev-only; default false) |
 | `ODDS_API_KEY` | No | The Odds API key |
 | `X_AUTH_TOKEN` | No | X/Twitter auth cookie |
 | `X_CT0` | No | X/Twitter CSRF cookie |
 | `NEXT_PUBLIC_SPORTS_API_URL` | Yes | API URL for frontend |
+| `SPORTS_API_INTERNAL_URL` | No | Internal API URL for server-side fetches in Docker |
+| `NEXT_PUBLIC_THEORY_ENGINE_URL` | No | Back-compat client URL fallback |
 | `ALLOWED_CORS_ORIGINS` | Prod | Allowed CORS origins |
 | `CONFIRM_DESTRUCTIVE` | No | Required for restore/reset scripts |
 

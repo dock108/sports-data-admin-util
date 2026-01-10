@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+infra/.env
+infra/.env.*.local
 
 # Python
 __pycache__/

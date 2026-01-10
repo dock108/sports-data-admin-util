@@ -146,6 +146,10 @@ services:
     build:
       context: ..
       dockerfile: infra/web.Dockerfile
+      args:
+        NEXT_PUBLIC_SPORTS_API_URL: ${NEXT_PUBLIC_SPORTS_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_THEORY_ENGINE_URL: ${NEXT_PUBLIC_THEORY_ENGINE_URL:-http://localhost:8000}
+        SPORTS_API_INTERNAL_URL: ${SPORTS_API_INTERNAL_URL:-http://api:8000}
     container_name: sports-web
     profiles: ["dev", "prod"]
     environment:

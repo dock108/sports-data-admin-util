@@ -30,7 +30,10 @@ sleep 5
 echo "Starting restore..."
 
 # Drop and recreate database to ensure clean state
-psql -U "${POSTGRES_USER:-sports}" -d postgres -c "DROP DATABASE IF EXISTS ${POSTGRES_DB:-sports};"
+#
+# Postgres 16+ supports DROP DATABASE ... WITH (FORCE) to terminate sessions.
+# This avoids fragile manual container stop ordering during local restores.
+psql -U "${POSTGRES_USER:-sports}" -d postgres -c "DROP DATABASE IF EXISTS ${POSTGRES_DB:-sports} WITH (FORCE);"
 psql -U "${POSTGRES_USER:-sports}" -d postgres -c "CREATE DATABASE ${POSTGRES_DB:-sports};"
 
 # Restore from backup
@@ -38,4 +41,4 @@ gunzip -c "$BACKUP_FILE" | psql -U "${POSTGRES_USER:-sports}" -d "${POSTGRES_DB:
 
 echo ""
 echo "Restore complete!"
-echo "Verify with: docker exec sports-postgres psql -U sports -d sports -c 'SELECT COUNT(*) FROM sports_games;'"
+echo "Verify with: docker exec sports-postgres psql -U ${POSTGRES_USER:-sports} -d ${POSTGRES_DB:-sports} -c 'SELECT COUNT(*) FROM sports_games;'"

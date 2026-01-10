@@ -2,7 +2,7 @@
 
 Revision ID: 20260115_000002
 Revises: 20260115_000001
-Create Date: 2026-01-15
+Create Date: 2026-01-10
 
 This migration adds reveal_reason to game_social_posts for debug visibility.
 """
