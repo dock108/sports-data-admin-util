@@ -36,6 +36,8 @@ MARKET_TYPES = {
     "h2h": "moneyline",
 }
 
+# NHL uses "spreads" for puck lines; keep the canonical "spread" market type.
+
 # Default snapshot times for closing lines (in UTC)
 # Evening games typically close around these times
 CLOSING_LINE_HOURS = {
@@ -325,14 +327,36 @@ class OddsAPIClient:
                     if not market_type:
                         continue
                     for outcome in market.get("outcomes", []):
+                        side = outcome.get("name")
+                        price = outcome.get("price")
+                        line = outcome.get("point")
+                        if not side or price is None:
+                            logger.debug(
+                                "odds_outcome_skipped",
+                                league=league_code,
+                                book=bookmaker.get("title"),
+                                market=market.get("key"),
+                                reason="missing_side_or_price",
+                            )
+                            continue
+                        if market_type in ("spread", "total") and line is None:
+                            logger.debug(
+                                "odds_outcome_skipped",
+                                league=league_code,
+                                book=bookmaker.get("title"),
+                                market=market.get("key"),
+                                side=side,
+                                reason="missing_line",
+                            )
+                            continue
                         snapshots.append(
                             NormalizedOddsSnapshot(
                                 league_code=league_code,
                                 book=bookmaker["title"],
                                 market_type=market_type,  # type: ignore[arg-type]
-                                side=outcome.get("name"),
-                                line=outcome.get("point"),
-                                price=outcome.get("price"),
+                                side=side,
+                                line=line,
+                                price=price,
                                 observed_at=datetime.fromisoformat(
                                     bookmaker["last_update"].replace("Z", "+00:00")
                                 ),
