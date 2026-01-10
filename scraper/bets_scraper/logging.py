@@ -35,8 +35,8 @@ def configure_logging() -> None:
     structlog.configure(
         processors=[
             structlog.processors.TimeStamper(fmt="iso"),  # ISO 8601 timestamps
-            structlog.processors.add_log_level,
-            structlog.processors.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
             structlog.processors.EventRenamer("message"),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,  # Exception formatting

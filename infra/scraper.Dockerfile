@@ -23,7 +23,9 @@ COPY api /app/api
 
 WORKDIR /app/scraper
 
-RUN uv sync --frozen --no-dev --system
+# uv 0.6+ removed --system from sync; export requirements and pip install
+RUN uv export --frozen --no-dev --no-hashes > /tmp/requirements.txt \
+    && uv pip install --system -r /tmp/requirements.txt
 
 RUN mkdir -p /ms-playwright \
     && python -m playwright install --with-deps chromium
