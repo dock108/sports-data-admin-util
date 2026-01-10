@@ -51,7 +51,7 @@ services:
       CELERY_RESULT_BACKEND: redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379/2
       ALLOWED_CORS_ORIGINS: ${ALLOWED_CORS_ORIGINS:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +125,22 @@ services:
     networks:
       - internal
       - app
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    container_name: sports-migrate
+    profiles: ["dev", "prod"]
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sports}:${POSTGRES_PASSWORD:-sports}@postgres:5432/${POSTGRES_DB:-sports}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
 
   web:
     build:

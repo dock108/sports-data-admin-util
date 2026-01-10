@@ -68,6 +68,21 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/api.Dockerfile
+    env_file: .env
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
   worker:
     build:
       context: .
