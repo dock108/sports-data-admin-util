@@ -24,9 +24,6 @@ node_modules/
 out/
 .turbo/
 *.tsbuildinfo
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
 
 # IDE
 .idea/
@@ -50,3 +47,4 @@ scraper/game_data/
 *.sql.gz
 *.dump
 data/
+
