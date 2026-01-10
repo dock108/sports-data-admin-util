@@ -13,7 +13,7 @@ from .. import db_models
 from ..config import settings
 from ..db import AsyncSession, get_db
 from ..services.recap_generator import build_recap
-from ..services.reveal_levels import parse_reveal_level
+from ..utils.datetime_utils import now_utc
 from .game_snapshot_models import (
     GameSnapshot,
     GameSnapshotResponse,
@@ -48,7 +48,7 @@ async def _record_snapshot_job_run(
     leagues: list[str],
     error_summary: str | None = None,
 ) -> None:
-    finished_at = datetime.now(timezone.utc)
+    finished_at = now_utc()
     duration = (finished_at - started_at).total_seconds()
     session.add(
         db_models.SportsJobRun(
@@ -96,7 +96,7 @@ async def list_games(
         }
     """
     _validate_range(range)
-    started_at = datetime.now(timezone.utc)
+    started_at = now_utc()
     league_filter: str | None = league.strip().upper() if league else None
     if league_filter == "":
         league_filter = None
@@ -111,7 +111,7 @@ async def list_games(
             assume_now = assume_now.replace(tzinfo=timezone.utc)
         now = assume_now.astimezone(timezone.utc)
     else:
-        now = datetime.now(timezone.utc)
+        now = now_utc()
     window_start: datetime
     window_end: datetime
 

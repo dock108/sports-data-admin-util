@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import sys
-from datetime import UTC, datetime
+from .utils.datetime_utils import now_utc
 from typing import Any
 
 
@@ -44,7 +44,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "timestamp": datetime.now(tz=UTC).isoformat(),
+            "timestamp": now_utc().isoformat(),
             "level": record.levelname.lower(),
             "logger": record.name,
             "service": self._service,

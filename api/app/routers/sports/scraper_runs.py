@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from ... import db_models
 from ...celery_client import get_celery_app
 from ...db import AsyncSession, get_db
-from ...utils.datetime_utils import now_utc
+from ...utils.datetime_utils import now_utc, date_to_utc_datetime
 from .common import get_league, serialize_run
 from .schemas import ScrapeRunCreateRequest, ScrapeRunResponse
 
@@ -22,7 +22,7 @@ router = APIRouter()
 def _coerce_date_to_datetime(value: date | None) -> datetime | None:
     if not value:
         return None
-    return datetime.combine(value, datetime.min.time())
+    return date_to_utc_datetime(value)
 
 
 def _serialize_config_payload(payload: ScrapeRunCreateRequest) -> dict[str, Any]:

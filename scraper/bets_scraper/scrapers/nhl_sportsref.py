@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
+from ..utils.datetime_utils import now_utc, date_to_utc_datetime
 from typing import Sequence
 from urllib.parse import urljoin
 
@@ -18,7 +19,7 @@ from ..models import (
     NormalizedTeamBoxscore,
     TeamIdentity,
 )
-from ..utils.parsing import extract_all_stats_from_row, get_stat_from_row, parse_float, parse_int
+from ..utils import extract_all_stats_from_row, get_stat_from_row, parse_float, parse_int
 from .base import BaseSportsReferenceScraper, ScraperError
 from .nhl_sportsref_helpers import (
     parse_pbp_period_marker,
@@ -179,7 +180,7 @@ class NHLSportsReferenceScraper(BaseSportsReferenceScraper):
                 league_code=self.league_code,
                 season=self._season_from_date(day),
                 season_type="regular",
-                game_date=datetime.combine(day, datetime.min.time()),
+                game_date=date_to_utc_datetime(day),
                 home_team=home_identity,
                 away_team=away_identity,
                 source_game_key=source_game_key,
@@ -308,7 +309,7 @@ class NHLSportsReferenceScraper(BaseSportsReferenceScraper):
             league_code=self.league_code,
             season=self._season_from_date(game_date),
             season_type="regular",
-            game_date=datetime.combine(game_date, datetime.min.time()),
+            game_date=date_to_utc_datetime(game_date),
             home_team=home_identity,
             away_team=away_identity,
             source_game_key=source_game_key,

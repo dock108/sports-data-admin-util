@@ -27,7 +27,7 @@ The NBA social integration is a scraper-driven X (Twitter) workflow that attache
   - Seed data for NBA is stored in `sql/003_seed_nba_x_handles.sql` and can be inserted into `team_social_accounts` via `sql/008_seed_team_social_accounts.sql`.
 
 ### Reveal/Outcome Filtering
-- **`scraper/bets_scraper/social/reveal_filter.py`**
+- **`api/app/utils/reveal_utils.py`** (Shared with Scraper)
   - Posts are **not deleted** but flagged with `reveal_risk` + `reveal_reason`.
   - Score/final/recap patterns are detected and labeled.
   - Conservative default: if text is missing or ambiguous, posts are flagged as reveal risk.

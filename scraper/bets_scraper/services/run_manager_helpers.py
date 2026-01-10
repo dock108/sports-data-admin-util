@@ -10,7 +10,7 @@ from ..config import settings
 from ..db import db_models
 from ..logging import logger
 from ..persistence.plays import upsert_plays
-from ..utils.datetime_utils import utcnow
+from ..utils.datetime_utils import now_utc
 
 
 def select_games_for_boxscores(
@@ -115,7 +115,7 @@ def select_games_for_social(
     if not league:
         return []
 
-    now = utcnow()
+    now = now_utc()
     recent_cutoff = now - timedelta(hours=settings.social_config.recent_game_window_hours)
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from .utils.datetime_utils import utcnow
+from .utils.datetime_utils import now_utc
 
 from celery import Celery, signals
 from celery.schedules import crontab
@@ -59,7 +59,7 @@ def mark_stale_runs_interrupted():
         with get_session() as session:
             # Find runs that have been running for more than 1 hour
             # (reasonable threshold - if a run is truly running, it should complete or fail)
-            stale_threshold = utcnow() - timedelta(hours=1)
+            stale_threshold = now_utc() - timedelta(hours=1)
             
             stale_runs = session.query(db_models.SportsScrapeRun).filter(
                 db_models.SportsScrapeRun.status == "running",
@@ -70,13 +70,13 @@ def mark_stale_runs_interrupted():
             if stale_runs:
                 for run in stale_runs:
                     run.status = "interrupted"
-                    run.finished_at = utcnow()
+                    run.finished_at = now_utc()
                     run.error_details = "Run was interrupted (worker shutdown or container killed)"
                     logger.warning(
                         "marking_stale_run_interrupted",
                         run_id=run.id,
                         started_at=str(run.started_at),
-                        hours_running=(utcnow() - run.started_at).total_seconds() / 3600,
+                        hours_running=(now_utc() - run.started_at).total_seconds() / 3600,
                     )
                 
                 session.commit()
@@ -112,7 +112,7 @@ def on_worker_shutting_down(sender=None, **kwargs):
             if running_runs:
                 for run in running_runs:
                     run.status = "interrupted"
-                    run.finished_at = utcnow()
+                    run.finished_at = now_utc()
                     run.error_details = "Run was interrupted (worker shutdown)"
                     logger.warning(
                         "marking_run_interrupted_on_shutdown",

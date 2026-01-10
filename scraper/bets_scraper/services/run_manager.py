@@ -16,7 +16,7 @@ from ..season_stats import NHLHockeyReferenceSeasonStatsScraper
 from ..scrapers import get_all_scrapers
 from ..social import XPostCollector
 from ..utils.date_utils import season_from_date
-from ..utils.datetime_utils import utcnow
+from ..utils.datetime_utils import now_utc
 from .diagnostics import detect_external_id_conflicts, detect_missing_pbp
 from .job_runs import complete_job_run, start_job_run
 from .run_manager_helpers import (
@@ -100,7 +100,7 @@ class ScrapeRunManager:
         if not scraper and config.boxscores:
             raise RuntimeError(f"No scraper implemented for {config.league_code}")
 
-        self._update_run(run_id, status="running", started_at=utcnow())
+        self._update_run(run_id, status="running", started_at=now_utc())
 
         ingest_run_id: int | None = None
         ingest_run_completed = False
@@ -329,7 +329,7 @@ class ScrapeRunManager:
                     # Detect if this is a backfill operation. If the end date is older
                     # than the recent_game_window, we're doing historical backfill and should
                     # skip the recency filter.
-                    now = utcnow()
+                    now = now_utc()
                     recent_window = timedelta(hours=settings.social_config.recent_game_window_hours)
                     end_dt = datetime.combine(end, datetime.max.time()).replace(tzinfo=timezone.utc)
                     is_backfill = (now - end_dt) > recent_window
@@ -387,7 +387,7 @@ class ScrapeRunManager:
             self._update_run(
                 run_id,
                 status="success",
-                finished_at=utcnow(),
+                finished_at=now_utc(),
                 summary=", ".join(summary_parts) or "No data processed",
             )
             logger.info("scrape_run_complete", run_id=run_id, summary=summary)
@@ -399,7 +399,7 @@ class ScrapeRunManager:
             self._update_run(
                 run_id,
                 status="error",
-                finished_at=utcnow(),
+                finished_at=now_utc(),
                 error_details=str(exc),
             )
             raise

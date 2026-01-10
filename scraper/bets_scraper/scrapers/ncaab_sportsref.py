@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
+from ..utils.datetime_utils import now_utc, date_to_utc_datetime
 from typing import Sequence
 from urllib.parse import urljoin
 
@@ -404,7 +405,7 @@ class NCAABSportsReferenceScraper(BaseSportsReferenceScraper):
                 league_code=self.league_code,
                 season=self._season_from_date(day),
                 season_type="regular",
-                game_date=datetime.combine(day, datetime.min.time()),
+                game_date=date_to_utc_datetime(day),
                 home_team=home_identity,
                 away_team=away_identity,
                 source_game_key=source_game_key,

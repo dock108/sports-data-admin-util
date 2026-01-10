@@ -12,7 +12,7 @@ from ..logging import logger
 from ..models import NormalizedPlayerSeasonStats, NormalizedTeamSeasonStats, TeamIdentity
 from ..normalization import normalize_team_name
 from ..scrapers.base import BaseSportsReferenceScraper
-from ..utils.parsing import (
+from ..utils import (
     extract_all_stats_from_row,
     parse_float,
     parse_int,

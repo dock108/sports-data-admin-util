@@ -13,7 +13,7 @@ from ..db import db_models
 from ..logging import logger
 from ..models import NormalizedPlayerSeasonStats, NormalizedTeamSeasonStats
 from ..utils.db_queries import get_league_id
-from ..utils.datetime_utils import utcnow
+from ..utils.datetime_utils import now_utc
 from .teams import _upsert_team
 
 
@@ -89,7 +89,7 @@ def upsert_team_season_stats(
             constraint="uq_team_season_stat_identity",
             set_={
                 "raw_stats_json": stats_json,
-                "updated_at": utcnow(),
+                "updated_at": now_utc(),
             },
             where=stmt.excluded.raw_stats_json.is_distinct_from(
                 db_models.SportsTeamSeasonStat.__table__.c.raw_stats_json
@@ -137,7 +137,7 @@ def upsert_player_season_stats(
                 "player_name": payload.player_name,
                 "position": payload.position,
                 "team_id": team_id,
-                "updated_at": utcnow(),
+                "updated_at": now_utc(),
             },
             where=stmt.excluded.raw_stats_json.is_distinct_from(
                 db_models.SportsPlayerSeasonStat.__table__.c.raw_stats_json

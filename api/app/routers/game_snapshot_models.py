@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from .. import db_models
 from ..services.reveal_levels import RevealLevel
-from ..utils.reveal_filter import classify_reveal_risk
+from ..utils.reveal_utils import classify_reveal_risk
 
 
 class TeamSnapshot(BaseModel):
