@@ -96,12 +96,14 @@ curl -f http://localhost:8000/healthz
 
 ## Database Migrations
 
-Alembic is configured in `api/alembic/`. Migrations run on container startup.
+Alembic is configured in `api/alembic/`. Migrations are run explicitly as a separate
+step (recommended for production).
 
 Manual migration steps:
 
 ```bash
 export DATABASE_URL=postgresql+asyncpg://...
+docker compose --profile prod run --rm migrate
 alembic -c api/alembic.ini revision --autogenerate -m "describe change"
 alembic -c api/alembic.ini upgrade head
 ```
@@ -128,6 +130,12 @@ Upload options:
 ```bash
 gzip -cd sports_YYYYMMDDTHHMMSSZ.sql.gz | psql "${DATABASE_URL}"
 ```
+For container restores, set `CONFIRM_DESTRUCTIVE=true` when running `/scripts/restore.sh`.
+
+### Destructive Operation Guardrails
+
+- `init_db` (SQLAlchemy `create_all`) is blocked in production/staging.
+- `/scripts/restore.sh` and `scripts/migrate_sports_data.sh` require `CONFIRM_DESTRUCTIVE=true`.
 
 ## CI/CD
 
@@ -154,6 +162,7 @@ Deploys only the changed services and restarts them with `docker compose up -d <
 | `RATE_LIMIT_WINDOW_SECONDS` | Rate limit window size |
 | `ENVIRONMENT` | `development`, `staging`, or `production` |
 | `RUN_MIGRATIONS` | Run Alembic on container start (`true`/`false`) |
+| `CONFIRM_DESTRUCTIVE` | Required to run destructive restore/reset scripts |
 | `BACKUP_S3_URI` | S3 destination for backups |
 | `BACKUP_RCLONE_REMOTE` | Rclone destination for backups |
 

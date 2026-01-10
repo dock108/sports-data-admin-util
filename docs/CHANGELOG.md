@@ -28,6 +28,8 @@ All notable changes to Sports Data Admin.
 ### Changed
 - Docker compose now connects to host database via `host.docker.internal`
 - Auto-migrations disabled by default (`RUN_MIGRATIONS=false`)
+- Migrations are now run explicitly via the `migrate` compose service
+- Destructive restore utilities now require `CONFIRM_DESTRUCTIVE=true`
 - Social scraper performs upsert (updates existing posts)
 - Ingestion config simplified to data type toggles + shared filters
 

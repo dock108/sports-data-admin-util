@@ -29,11 +29,15 @@ The default `docker-compose.yml` connects to:
 
 ### Migrations
 
-Migrations run automatically on container startup when `RUN_MIGRATIONS=true`.
+Migrations are run explicitly (not on every container startup). Use the dedicated
+`migrate` service or run Alembic in the API container.
 
 To run migrations manually:
 
 ```bash
+# Recommended (explicit) migration job
+docker compose --profile dev run --rm migrate
+
 # Check current version
 docker exec sports-api alembic current
 

@@ -6,6 +6,11 @@ set -euo pipefail
 # Example: docker exec -i sports-postgres /scripts/restore.sh /backups/sports_20260108_120000.sql.gz
 
 BACKUP_FILE="${1:-/backups/latest.sql.gz}"
+if [[ "${CONFIRM_DESTRUCTIVE:-false}" != "true" ]]; then
+    echo "ERROR: Destructive restore blocked."
+    echo "Set CONFIRM_DESTRUCTIVE=true to proceed."
+    exit 1
+fi
 
 if [ ! -f "$BACKUP_FILE" ]; then
     echo "ERROR: Backup file not found: $BACKUP_FILE"

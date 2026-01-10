@@ -144,9 +144,13 @@ docker exec sports-postgres psql -U sports -d sports -c "SELECT COUNT(*) FROM sp
 
 ## Migrations
 
-Alembic migrations run automatically on API startup when `RUN_MIGRATIONS=true`.
+Alembic migrations are run explicitly (not on every API startup). Use the dedicated
+`migrate` service or run Alembic in the API container.
 
 ```bash
+# Recommended (explicit) migration job
+docker compose --profile prod run --rm migrate
+
 # Check current version
 docker exec sports-api alembic current
 
@@ -167,12 +171,13 @@ docker exec sports-api alembic revision --autogenerate -m "describe change"
 | `POSTGRES_PORT` | No | Host port for postgres (default: 5432) |
 | `REDIS_PASSWORD` | No | Redis password |
 | `ENVIRONMENT` | No | `dev` or `prod` |
-| `RUN_MIGRATIONS` | No | Run Alembic on startup |
+| `RUN_MIGRATIONS` | No | Run Alembic on startup (dev-only; default false) |
 | `ODDS_API_KEY` | No | The Odds API key |
 | `X_AUTH_TOKEN` | No | X/Twitter auth cookie |
 | `X_CT0` | No | X/Twitter CSRF cookie |
 | `NEXT_PUBLIC_SPORTS_API_URL` | Yes | API URL for frontend |
 | `ALLOWED_CORS_ORIGINS` | Prod | Allowed CORS origins |
+| `CONFIRM_DESTRUCTIVE` | No | Required for restore/reset scripts |
 
 ## Health Checks
 
